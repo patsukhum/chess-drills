@@ -8,6 +8,7 @@ import {
   PAGE_SIZE,
 } from '../logic/onlineGames.js';
 import { pgnToReplayData } from '../logic/pgn.js';
+import OpeningStatsTab from './OpeningStatsTab.jsx';
 
 const TC_LABELS = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', classical: 'Classical' };
 const PLATFORMS = [
@@ -428,6 +429,7 @@ function AccountSetup({ userId, accounts, onAccountsChange }) {
 // ── Main Online Games section ─────────────────────────────────────────────────
 
 export default function OnlineGamesSection({ userId }) {
+  const [onlineTab, setOnlineTab] = useState('games'); // 'games' | 'stats'
   const [accounts, setAccounts] = useState(loadStoredAccounts);
   const [games, setGames] = useState([]);
   const [total, setTotal] = useState(0);
@@ -515,6 +517,25 @@ export default function OnlineGamesSection({ userId }) {
     <div className="games-screen">
       <AccountSetup userId={userId} accounts={accounts} onAccountsChange={handleAccountsChange} />
 
+      <div className="online-subtabs">
+        <button
+          className={`online-subtab${onlineTab === 'games' ? ' online-subtab--active' : ''}`}
+          onClick={() => setOnlineTab('games')}
+        >
+          Games
+        </button>
+        <button
+          className={`online-subtab${onlineTab === 'stats' ? ' online-subtab--active' : ''}`}
+          onClick={() => setOnlineTab('stats')}
+        >
+          Opening Stats
+        </button>
+      </div>
+
+      {onlineTab === 'stats' ? (
+        <OpeningStatsTab userId={userId} />
+      ) : (
+      <>
       {(hasGames || search) && (
         <>
           <div className="games-toolbar">
@@ -600,6 +621,8 @@ export default function OnlineGamesSection({ userId }) {
             </div>
           )}
         </>
+      )}
+      </>
       )}
     </div>
   );

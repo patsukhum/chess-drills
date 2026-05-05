@@ -227,4 +227,21 @@ export async function getLastPlayedAt(userId, platform, username) {
   return data?.played_at ? new Date(data.played_at).getTime() : null;
 }
 
+export async function getOnlineGamesForStats(userId, { filterTC = 'all', filterColor = 'all', since = null } = {}) {
+  let query = supabase
+    .from('online_games')
+    .select('opening, result, player_color, time_control_category, played_at')
+    .eq('user_id', userId)
+    .not('result', 'is', null)
+    .order('played_at', { ascending: true });
+
+  if (filterTC !== 'all') query = query.eq('time_control_category', filterTC);
+  if (filterColor !== 'all') query = query.eq('player_color', filterColor);
+  if (since) query = query.gte('played_at', since);
+
+  const { data, error } = await query;
+  if (error) return [];
+  return data || [];
+}
+
 export { PAGE_SIZE };
