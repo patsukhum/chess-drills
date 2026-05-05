@@ -1277,6 +1277,17 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.movelist-clk {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+.movelist-cell--active .movelist-clk {
+  color: rgba(255,255,255,0.7);
+}
+
 /* ── Result badge ── */
 .result-badge {
   display: inline-flex;
@@ -1648,25 +1659,24 @@ body {
   color: var(--text);
 }
 
-.online-platform-chip {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
+.online-platform-logo {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.7;
   flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
-.online-platform-chip--lichess {
-  background: rgba(255, 255, 255, 0.08);
-  color: #bbb;
-  border: 1px solid rgba(255,255,255,0.12);
-}
-
-.online-platform-chip--chesscom {
-  background: rgba(124, 196, 80, 0.15);
-  color: #7cc450;
-  border: 1px solid rgba(124, 196, 80, 0.3);
+.online-account-platform-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 90px;
 }
 
 .online-progress {

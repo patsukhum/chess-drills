@@ -15,6 +15,33 @@ const PLATFORMS = [
   { id: 'chess.com', label: 'Chess.com' },
 ];
 
+const PLATFORM_LOGO = {
+  lichess: 'https://lichess.org/assets/logo/lichess-favicon-32.png',
+  'chess.com': 'https://www.chess.com/favicon.ico',
+};
+
+// "180+2" → "3+2", "600+0" → "10", "90+0" → "1:30"
+function formatTC(tc) {
+  if (!tc) return null;
+  const m = tc.match(/^(\d+)(?:\+(\d+))?$/);
+  if (!m) return tc;
+  const baseSec = parseInt(m[1]);
+  const inc = m[2] ? parseInt(m[2]) : 0;
+  const mins = Math.floor(baseSec / 60);
+  const secs = baseSec % 60;
+  const timeStr = secs > 0 ? `${mins}:${String(secs).padStart(2, '0')}` : `${mins}`;
+  return inc > 0 ? `${timeStr}+${inc}` : timeStr;
+}
+
+// "0:05:00" → "5:00", "0:00:45" → "0:45"
+function formatClock(clk) {
+  if (!clk) return null;
+  const parts = clk.split(':').map(Number);
+  const [h, m, s] = parts;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function loadStoredAccounts() {
   try { return JSON.parse(localStorage.getItem('online_accounts') || '{}'); } catch { return {}; }
 }
@@ -28,6 +55,10 @@ function OnlineGameRow({ game, onOpen }) {
   const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
   const resultClass = game.result ? `game-row--${game.result}` : '';
   const dateStr = game.played_at ? new Date(game.played_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+  const openingParts = game.opening ? game.opening.split(': ') : [];
+  const openingFamily = openingParts[0] || null;
+  const openingVariation = openingParts[1] || null;
+  const tc = formatTC(game.time_control);
 
   return (
     <div className={`game-row ${resultClass}`} onClick={() => onOpen(game.id)} style={{ cursor: 'pointer' }}>
@@ -38,14 +69,15 @@ function OnlineGameRow({ game, onOpen }) {
           {game.opponent_rating ? <span className="game-row-rating"> ({game.opponent_rating})</span> : null}
         </span>
         <div className="game-row-chips">
-          {game.opening && <span className="game-row-chip">{game.opening}</span>}
-          {game.time_control_category && (
-            <span className="game-row-chip game-row-chip--muted">{TC_LABELS[game.time_control_category]}</span>
-          )}
+          {openingFamily && <span className="game-row-chip">{openingFamily}</span>}
+          {openingVariation && <span className="game-row-chip game-row-chip--muted">{openingVariation}</span>}
+          {tc && <span className="game-row-chip game-row-chip--muted">{tc}</span>}
           {dateStr && <span className="game-row-chip game-row-chip--muted">{dateStr}</span>}
-          <span className={`game-row-chip online-platform-chip online-platform-chip--${game.platform.replace('.', '')}`}>
-            {game.platform === 'lichess' ? 'Lichess' : 'Chess.com'}
-          </span>
+          <img
+            src={PLATFORM_LOGO[game.platform]}
+            alt={game.platform}
+            className="online-platform-logo"
+          />
         </div>
       </div>
     </div>
@@ -67,12 +99,12 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
       if (turn === 'w') {
         result.push({
           moveNum,
-          white: { idx: i, san: moves[i].san },
-          black: i + 1 < moves.length ? { idx: i + 1, san: moves[i + 1].san } : null,
+          white: { idx: i, san: moves[i].san, clk: moves[i].clk },
+          black: i + 1 < moves.length ? { idx: i + 1, san: moves[i + 1].san, clk: moves[i + 1].clk } : null,
         });
         i += i + 1 < moves.length ? 2 : 1;
       } else {
-        result.push({ moveNum, white: null, black: { idx: i, san: moves[i].san } });
+        result.push({ moveNum, white: null, black: { idx: i, san: moves[i].san, clk: moves[i].clk } });
         i++;
       }
     }
@@ -95,7 +127,10 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
               <button
                 className={`movelist-cell movelist-cell--btn${row.white.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.white.idx + 1)}
-              >{row.white.san}</button>
+              >
+                {row.white.san}
+                {row.white.clk && <span className="movelist-clk">{formatClock(row.white.clk)}</span>}
+              </button>
             ) : (
               <span className="movelist-cell movelist-cell--placeholder">…</span>
             )}
@@ -103,7 +138,10 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
               <button
                 className={`movelist-cell movelist-cell--btn${row.black.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.black.idx + 1)}
-              >{row.black.san}</button>
+              >
+                {row.black.san}
+                {row.black.clk && <span className="movelist-clk">{formatClock(row.black.clk)}</span>}
+              </button>
             ) : (
               <span className="movelist-cell" />
             )}
@@ -175,11 +213,11 @@ function OnlineGameViewer({ game, replayData, onBack }) {
         <div style={{ width: 40 }} />
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '4px 0 8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '4px 0 8px', fontSize: '0.82rem', color: 'var(--text-muted)', alignItems: 'center' }}>
         {game.opening && <span>{game.opening}</span>}
         {dateStr && <span>· {dateStr}</span>}
-        {game.time_control && <span>· {game.time_control}</span>}
-        <span>· {game.platform === 'lichess' ? 'Lichess' : 'Chess.com'}</span>
+        {game.time_control && <span>· {formatTC(game.time_control)}</span>}
+        <img src={PLATFORM_LOGO[game.platform]} alt={game.platform} className="online-platform-logo" />
       </div>
 
       <div className="study-practice-layout">
@@ -274,7 +312,8 @@ function AccountSetup({ userId, accounts, onAccountsChange }) {
         const prog = progress[id];
         return (
           <div key={id} className="online-account-row">
-            <span className={`online-platform-chip online-platform-chip--${id.replace('.', '')}`} style={{ fontSize: '0.8rem', padding: '3px 9px' }}>
+            <span className="online-account-platform-label">
+              <img src={PLATFORM_LOGO[id]} alt={label} className="online-platform-logo" />
               {label}
             </span>
             {isLinked ? (

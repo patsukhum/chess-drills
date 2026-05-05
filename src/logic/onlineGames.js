@@ -114,7 +114,7 @@ export function extractOnlineGameMeta(pgn, platform, username) {
 // ── Fetchers ──────────────────────────────────────────────────────────────────
 
 export async function fetchLichessGames(username, { max = 5000, since = null } = {}) {
-  let url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&opening=true&clocks=false&evals=false`;
+  let url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&opening=true&clocks=true&evals=false`;
   if (since) url += `&since=${since}`;
   const resp = await fetch(url, { headers: { Accept: 'application/x-chess-pgn' } });
   if (resp.status === 404) throw new Error(`Lichess user "${username}" not found`);

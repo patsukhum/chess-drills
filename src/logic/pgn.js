@@ -28,9 +28,12 @@ function parseGame(rawGame) {
   const history = chess.history({ verbose: true });
   if (history.length === 0) return null;
 
-  // Build FEN→comment map; strip any residual [%...] annotation markers
+  // Build FEN→comment and FEN→clock maps from PGN annotations
   const commentsByFen = {};
+  const clocksByFen = {};
   for (const { fen, comment } of chess.getComments()) {
+    const clkMatch = comment.match(/\[%clk\s+(\d+:\d+:\d+)\]/);
+    if (clkMatch) clocksByFen[fen] = clkMatch[1];
     const text = comment.replace(/\[%[^\]]*\]/g, '').trim();
     if (text) commentsByFen[fen] = text;
   }
@@ -48,10 +51,12 @@ function parseGame(rawGame) {
       promotion: move.promotion || null,
       san: move.san,
       comment: null,
+      clk: null,
     };
     replay.move(move);
-    // Comment in PGN follows the move, keyed by the FEN after the move
+    // Comment and clock follow the move, keyed by the FEN after the move
     entry.comment = commentsByFen[replay.fen()] ?? null;
+    entry.clk = clocksByFen[replay.fen()] ?? null;
     positions.push(entry);
   }
 
@@ -175,6 +180,7 @@ export function pgnToReplayData(pgn) {
   const moves = positions.slice(0, fens.length - 1).map(p => ({
     san: p.san,
     comment: p.comment,
+    clk: p.clk,
     from: p.from,
     to: p.to,
   }));
