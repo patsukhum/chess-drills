@@ -1,0 +1,446 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Chessboard } from 'react-chessboard';
+import { useLayoutEffect } from 'react';
+import { useMemo } from 'react';
+import {
+  importOnlineGames,
+  getOnlineGames,
+  getOnlineGamePgn,
+  getLastPlayedAt,
+  PAGE_SIZE,
+} from '../logic/onlineGames.js';
+import { pgnToReplayData } from '../logic/pgn.js';
+
+const TC_LABELS = { bullet: 'Bullet', blitz: 'Blitz', rapid: 'Rapid', classical: 'Classical' };
+const PLATFORMS = [
+  { id: 'lichess', label: 'Lichess' },
+  { id: 'chess.com', label: 'Chess.com' },
+];
+
+function loadStoredAccounts() {
+  try { return JSON.parse(localStorage.getItem('online_accounts') || '{}'); } catch { return {}; }
+}
+function saveStoredAccounts(acc) {
+  localStorage.setItem('online_accounts', JSON.stringify(acc));
+}
+
+// ── Lightweight game row ──────────────────────────────────────────────────────
+
+function OnlineGameRow({ game, onOpen }) {
+  const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
+  const resultClass = game.result ? `game-row--${game.result}` : '';
+  const dateStr = game.played_at ? new Date(game.played_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+
+  return (
+    <div className={`game-row ${resultClass}`} onClick={() => onOpen(game.id)} style={{ cursor: 'pointer' }}>
+      <div className="game-row-body">
+        {colorCircle && <span className="game-row-color">{colorCircle}</span>}
+        <span className="game-row-name">
+          {game.opponent || game.name}
+          {game.opponent_rating ? <span className="game-row-rating"> ({game.opponent_rating})</span> : null}
+        </span>
+        <div className="game-row-chips">
+          {game.opening && <span className="game-row-chip">{game.opening}</span>}
+          {game.time_control_category && (
+            <span className="game-row-chip game-row-chip--muted">{TC_LABELS[game.time_control_category]}</span>
+          )}
+          {dateStr && <span className="game-row-chip game-row-chip--muted">{dateStr}</span>}
+          <span className={`game-row-chip online-platform-chip online-platform-chip--${game.platform.replace('.', '')}`}>
+            {game.platform === 'lichess' ? 'Lichess' : 'Chess.com'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mini viewer (read-only, no editing) ──────────────────────────────────────
+
+function OnlineGameViewer({ game, replayData, onBack }) {
+  const [posIdx, setPosIdx] = useState(0);
+  const boardWrapRef = useRef(null);
+  const [boardWidth, setBoardWidth] = useState(400);
+
+  const { fens, moves } = replayData;
+  const totalPos = fens.length;
+  const prev = useCallback(() => setPosIdx(i => Math.max(0, i - 1)), []);
+  const next = useCallback(() => setPosIdx(i => Math.min(totalPos - 1, i + 1)), [totalPos]);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [prev, next]);
+
+  useLayoutEffect(() => {
+    if (boardWrapRef.current) setBoardWidth(boardWrapRef.current.offsetWidth || 400);
+  }, []);
+
+  useEffect(() => {
+    if (!boardWrapRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      const w = Math.floor(entries[0].contentRect.width);
+      if (w > 0) setBoardWidth(w);
+    });
+    obs.observe(boardWrapRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const squareStyles = useMemo(() => {
+    if (posIdx === 0) return {};
+    const { from, to } = moves[posIdx - 1];
+    return {
+      [from]: { background: 'rgba(255, 215, 0, 0.35)' },
+      [to]: { background: 'rgba(255, 215, 0, 0.55)' },
+    };
+  }, [posIdx, moves]);
+
+  const orientation = game.player_color === 'black' ? 'black' : 'white';
+  const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
+  const dateStr = game.played_at ? new Date(game.played_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+
+  return (
+    <div className="game-viewer-screen">
+      <div className="game-viewer-nav">
+        <button className="back-btn" onClick={onBack}>← Online Games</button>
+        <div className="game-viewer-title-row">
+          {colorCircle && <span className="viewer-color-circle">{colorCircle}</span>}
+          <span className="game-name-title" style={{ cursor: 'default' }}>{game.name}</span>
+        </div>
+        <div style={{ width: 40 }} />
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '4px 0 8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+        {game.opening && <span>{game.opening}</span>}
+        {dateStr && <span>· {dateStr}</span>}
+        {game.time_control && <span>· {game.time_control}</span>}
+        <span>· {game.platform === 'lichess' ? 'Lichess' : 'Chess.com'}</span>
+      </div>
+
+      <div className="study-practice-layout">
+        <div className="study-practice-left">
+          <div className="study-board-wrap" ref={boardWrapRef}>
+            {boardWidth > 0 && (
+              <Chessboard
+                options={{
+                  position: fens[posIdx],
+                  boardOrientation: orientation,
+                  allowDragging: false,
+                  boardWidth,
+                  squareStyles,
+                  animationDurationInMs: 150,
+                  boardStyle: { borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' },
+                }}
+              />
+            )}
+          </div>
+          <div className="viewer-controls">
+            <button className="viewer-nav-btn" onClick={() => setPosIdx(0)} disabled={posIdx === 0} title="Start">⇤</button>
+            <button className="viewer-nav-btn" onClick={prev} disabled={posIdx === 0} title="Previous (←)">‹</button>
+            <span className="viewer-pos-label">{posIdx} / {totalPos - 1}</span>
+            <button className="viewer-nav-btn" onClick={next} disabled={posIdx === totalPos - 1} title="Next (→)">›</button>
+            <button className="viewer-nav-btn" onClick={() => setPosIdx(totalPos - 1)} disabled={posIdx === totalPos - 1} title="End">⇥</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Account setup panel ───────────────────────────────────────────────────────
+
+function AccountSetup({ userId, accounts, onAccountsChange }) {
+  const [drafts, setDrafts] = useState({ lichess: accounts.lichess || '', 'chess.com': accounts['chess.com'] || '' });
+  const [status, setStatus] = useState({ lichess: null, 'chess.com': null });
+  const [progress, setProgress] = useState({ lichess: null, 'chess.com': null });
+
+  async function handleImport(platform) {
+    const username = drafts[platform].trim();
+    if (!username) return;
+    setStatus(s => ({ ...s, [platform]: 'importing' }));
+    setProgress(p => ({ ...p, [platform]: { done: 0, total: null } }));
+    try {
+      const result = await importOnlineGames(userId, platform, username, {
+        max: 5000,
+        onProgress: (done, total) => setProgress(p => ({ ...p, [platform]: { done, total } })),
+      });
+      const newAccounts = { ...accounts, [platform]: username };
+      saveStoredAccounts(newAccounts);
+      onAccountsChange(newAccounts);
+      setStatus(s => ({ ...s, [platform]: `Imported ${result.saved} games` }));
+    } catch (err) {
+      setStatus(s => ({ ...s, [platform]: `Error: ${err.message}` }));
+    }
+    setProgress(p => ({ ...p, [platform]: null }));
+  }
+
+  async function handleSync(platform) {
+    const username = accounts[platform];
+    if (!username) return;
+    setStatus(s => ({ ...s, [platform]: 'syncing' }));
+    setProgress(p => ({ ...p, [platform]: { done: 0, total: null } }));
+    try {
+      const since = await getLastPlayedAt(userId, platform, username);
+      const result = await importOnlineGames(userId, platform, username, {
+        max: 5000,
+        since: since ? since + 1 : null,
+        onProgress: (done, total) => setProgress(p => ({ ...p, [platform]: { done, total } })),
+      });
+      setStatus(s => ({ ...s, [platform]: `Synced ${result.saved} new games` }));
+    } catch (err) {
+      setStatus(s => ({ ...s, [platform]: `Error: ${err.message}` }));
+    }
+    setProgress(p => ({ ...p, [platform]: null }));
+  }
+
+  return (
+    <div className="online-accounts">
+      {PLATFORMS.map(({ id, label }) => {
+        const isLinked = !!accounts[id];
+        const isActive = status[id] === 'importing' || status[id] === 'syncing';
+        const prog = progress[id];
+        return (
+          <div key={id} className="online-account-row">
+            <span className={`online-platform-chip online-platform-chip--${id.replace('.', '')}`} style={{ fontSize: '0.8rem', padding: '3px 9px' }}>
+              {label}
+            </span>
+            {isLinked ? (
+              <>
+                <span className="online-account-name">{accounts[id]}</span>
+                <button
+                  className="upload-btn"
+                  onClick={() => handleSync(id)}
+                  disabled={isActive}
+                  style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                >
+                  {status[id] === 'syncing' ? 'Syncing…' : 'Sync'}
+                </button>
+                <button
+                  className="modal-cancel-btn"
+                  onClick={() => {
+                    const newAcc = { ...accounts };
+                    delete newAcc[id];
+                    saveStoredAccounts(newAcc);
+                    onAccountsChange(newAcc);
+                    setDrafts(d => ({ ...d, [id]: '' }));
+                    setStatus(s => ({ ...s, [id]: null }));
+                  }}
+                  style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+                >
+                  Unlink
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  className="games-search"
+                  style={{ flex: 1, maxWidth: 200 }}
+                  placeholder={`${label} username`}
+                  value={drafts[id]}
+                  onChange={e => setDrafts(d => ({ ...d, [id]: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') handleImport(id); }}
+                  disabled={isActive}
+                />
+                <button
+                  className="upload-btn"
+                  onClick={() => handleImport(id)}
+                  disabled={!drafts[id].trim() || isActive}
+                  style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                >
+                  {status[id] === 'importing' ? 'Importing…' : 'Import'}
+                </button>
+              </>
+            )}
+            {prog && (
+              <span className="online-progress">
+                {prog.total ? `${prog.done} / ${prog.total}` : `${prog.done} games…`}
+              </span>
+            )}
+            {status[id] && status[id] !== 'importing' && status[id] !== 'syncing' && (
+              <span className={`online-status ${status[id].startsWith('Error') ? 'online-status--error' : 'online-status--ok'}`}>
+                {status[id]}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Main Online Games section ─────────────────────────────────────────────────
+
+export default function OnlineGamesSection({ userId }) {
+  const [accounts, setAccounts] = useState(loadStoredAccounts);
+  const [games, setGames] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [filterResult, setFilterResult] = useState('all');
+  const [filterPlatform, setFilterPlatform] = useState('all');
+  const [filterTC, setFilterTC] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [viewGame, setViewGame] = useState(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const searchTimeout = useRef(null);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const hasAccounts = !!(accounts.lichess || accounts['chess.com']);
+
+  const loadGames = useCallback(async (p = 0, q = search, fr = filterResult, fp = filterPlatform, ftc = filterTC) => {
+    if (!userId) return;
+    setLoading(true);
+    const r = await getOnlineGames(userId, { page: p, search: q, filterResult: fr, filterPlatform: fp, filterTC: ftc });
+    setGames(r.games);
+    setTotal(r.total);
+    setLoading(false);
+  }, [userId, search, filterResult, filterPlatform, filterTC]);
+
+  useEffect(() => {
+    if (userId) loadGames(0, search, filterResult, filterPlatform, filterTC);
+    setPage(0);
+  }, [userId, filterResult, filterPlatform, filterTC]);
+
+  useEffect(() => {
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      loadGames(0, search, filterResult, filterPlatform, filterTC);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(searchTimeout.current);
+  }, [search]);
+
+  // Reload after import/sync
+  function handleAccountsChange(newAccounts) {
+    setAccounts(newAccounts);
+    loadGames(0, search, filterResult, filterPlatform, filterTC);
+    setPage(0);
+  }
+
+  async function handleOpenGame(gameId) {
+    setViewLoading(true);
+    try {
+      const pgn = await getOnlineGamePgn(gameId);
+      const replayData = pgnToReplayData(pgn);
+      if (!replayData || replayData.fens.length < 2) {
+        alert("Could not parse this game's PGN.");
+        return;
+      }
+      const game = games.find(g => g.id === gameId);
+      setViewGame({ game, replayData });
+    } catch {
+      alert('Failed to load game.');
+    } finally {
+      setViewLoading(false);
+    }
+  }
+
+  function handlePageChange(newPage) {
+    setPage(newPage);
+    loadGames(newPage, search, filterResult, filterPlatform, filterTC);
+  }
+
+  if (viewGame) {
+    return (
+      <div className="game-viewer-wrap">
+        <OnlineGameViewer
+          game={viewGame.game}
+          replayData={viewGame.replayData}
+          onBack={() => setViewGame(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="games-screen">
+      <AccountSetup userId={userId} accounts={accounts} onAccountsChange={handleAccountsChange} />
+
+      {hasAccounts && (
+        <>
+          <div className="games-toolbar">
+            <input
+              className="games-search"
+              placeholder="Search by opponent or opening…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="online-filter-row">
+            <div className="games-filter-tabs">
+              {['all', 'win', 'loss', 'draw'].map(f => (
+                <button
+                  key={f}
+                  className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
+                  onClick={() => setFilterResult(f)}
+                >
+                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className="games-filter-tabs">
+              {['all', 'bullet', 'blitz', 'rapid', 'classical'].map(f => (
+                <button
+                  key={f}
+                  className={`games-filter-tab${filterTC === f ? ' games-filter-tab--active' : ''}`}
+                  onClick={() => setFilterTC(f)}
+                >
+                  {f === 'all' ? 'All TC' : TC_LABELS[f]}
+                </button>
+              ))}
+            </div>
+            {accounts.lichess && accounts['chess.com'] && (
+              <div className="games-filter-tabs">
+                {['all', 'lichess', 'chess.com'].map(f => (
+                  <button
+                    key={f}
+                    className={`games-filter-tab${filterPlatform === f ? ' games-filter-tab--active' : ''}`}
+                    onClick={() => setFilterPlatform(f)}
+                  >
+                    {f === 'all' ? 'All Sites' : f === 'lichess' ? 'Lichess' : 'Chess.com'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {viewLoading && <p className="study-loading">Loading game…</p>}
+
+          {loading ? (
+            <p className="study-loading">Loading…</p>
+          ) : games.length === 0 ? (
+            <div className="games-empty">
+              <p>{total === 0 && !search ? 'No games imported yet. Use the Import button above.' : 'No games match your filters.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="games-list">
+                {games.map(game => (
+                  <OnlineGameRow key={game.id} game={game} onOpen={handleOpenGame} />
+                ))}
+              </div>
+              {totalPages > 1 && (
+                <div className="games-pagination">
+                  <button className="page-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 0}>‹ Prev</button>
+                  <span className="page-label">Page {page + 1} of {totalPages}</span>
+                  <button className="page-btn" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages - 1}>Next ›</button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {!hasAccounts && (
+        <div className="games-empty">
+          <p>Connect a Lichess or Chess.com account above to import your games.</p>
+        </div>
+      )}
+    </div>
+  );
+}

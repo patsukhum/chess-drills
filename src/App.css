@@ -1599,6 +1599,94 @@ body {
   color: var(--text-muted);
 }
 
+/* ── Section tabs (Tournament / Online) ── */
+.games-section-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid rgba(255,255,255,0.08);
+  margin-bottom: 4px;
+}
+
+.games-section-tab {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 8px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.games-section-tab:hover { color: var(--text); }
+
+.games-section-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Online games ── */
+.online-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 4px;
+}
+
+.online-account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.online-account-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.online-platform-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.online-platform-chip--lichess {
+  background: rgba(255, 255, 255, 0.08);
+  color: #bbb;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.online-platform-chip--chesscom {
+  background: rgba(124, 196, 80, 0.15);
+  color: #7cc450;
+  border: 1px solid rgba(124, 196, 80, 0.3);
+}
+
+.online-progress {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.online-status {
+  font-size: 0.8rem;
+}
+.online-status--ok { color: #4caf50; }
+.online-status--error { color: #e05252; }
+
+.online-filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 /* ── Game viewer ── */
 .game-viewer-wrap {
   width: 100%;

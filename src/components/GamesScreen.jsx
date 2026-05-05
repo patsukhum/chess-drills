@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } fr
 import { Chessboard } from 'react-chessboard';
 import { getGames, getGamePgn, saveGame, deleteGame, updateGameField } from '../logic/games.js';
 import { pgnToReplayData, splitPgn, parseChapterNameMeta } from '../logic/pgn.js';
+import OnlineGamesSection from './OnlineGamesSection.jsx';
 
 const PAGE_SIZE = 20;
 
@@ -423,6 +424,7 @@ function GameRow({ game, onOpen, onDelete }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function GamesScreen({ userId, playerName, onBack }) {
+  const [tab, setTab] = useState('tournament');
   const [games, setGames] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -536,62 +538,86 @@ export default function GamesScreen({ userId, playerName, onBack }) {
       <div className="games-nav">
         <button className="back-btn" onClick={onBack}>← Home</button>
         <h2 className="study-title">My Games</h2>
-        <button className="upload-btn" onClick={() => setShowAdd(true)}>+ Add Games</button>
+        {tab === 'tournament'
+          ? <button className="upload-btn" onClick={() => setShowAdd(true)}>+ Add Games</button>
+          : <div style={{ width: 100 }} />
+        }
       </div>
 
-      <div className="games-toolbar">
-        <input
-          className="games-search"
-          placeholder="Search by name, opening, opponent…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="games-filter-tabs">
-          {['all', 'win', 'loss', 'draw'].map(f => (
-            <button
-              key={f}
-              className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
-              onClick={() => setFilterResult(f)}
-            >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
+      <div className="games-section-tabs">
+        <button
+          className={`games-section-tab${tab === 'tournament' ? ' games-section-tab--active' : ''}`}
+          onClick={() => setTab('tournament')}
+        >
+          Tournament
+        </button>
+        <button
+          className={`games-section-tab${tab === 'online' ? ' games-section-tab--active' : ''}`}
+          onClick={() => setTab('online')}
+        >
+          Online
+        </button>
       </div>
 
-      {viewLoading && <p className="study-loading">Loading game…</p>}
-
-      {loading ? (
-        <p className="study-loading">Loading…</p>
-      ) : games.length === 0 ? (
-        <div className="games-empty">
-          {total === 0 && !search && filterResult === 'all'
-            ? <p>No games yet. Add your first game above!</p>
-            : <p>No games match your search.</p>
-          }
-        </div>
+      {tab === 'online' ? (
+        <OnlineGamesSection userId={userId} />
       ) : (
-        <div className="games-list">
-          {games.map(game => (
-            <GameRow
-              key={game.id}
-              game={game}
-              onOpen={handleOpenGame}
-              onDelete={handleDelete}
+        <>
+          <div className="games-toolbar">
+            <input
+              className="games-search"
+              placeholder="Search by name, opening, opponent…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
             />
-          ))}
-        </div>
-      )}
+            <div className="games-filter-tabs">
+              {['all', 'win', 'loss', 'draw'].map(f => (
+                <button
+                  key={f}
+                  className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
+                  onClick={() => setFilterResult(f)}
+                >
+                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {totalPages > 1 && (
-        <div className="games-pagination">
-          <button className="page-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 0}>‹ Prev</button>
-          <span className="page-label">Page {page + 1} of {totalPages}</span>
-          <button className="page-btn" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages - 1}>Next ›</button>
-        </div>
-      )}
+          {viewLoading && <p className="study-loading">Loading game…</p>}
 
-      {showAdd && <AddGameModal onAdd={handleAdd} onClose={() => setShowAdd(false)} />}
+          {loading ? (
+            <p className="study-loading">Loading…</p>
+          ) : games.length === 0 ? (
+            <div className="games-empty">
+              {total === 0 && !search && filterResult === 'all'
+                ? <p>No games yet. Add your first game above!</p>
+                : <p>No games match your search.</p>
+              }
+            </div>
+          ) : (
+            <div className="games-list">
+              {games.map(game => (
+                <GameRow
+                  key={game.id}
+                  game={game}
+                  onOpen={handleOpenGame}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="games-pagination">
+              <button className="page-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 0}>‹ Prev</button>
+              <span className="page-label">Page {page + 1} of {totalPages}</span>
+              <button className="page-btn" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages - 1}>Next ›</button>
+            </div>
+          )}
+
+          {showAdd && <AddGameModal onAdd={handleAdd} onClose={() => setShowAdd(false)} />}
+        </>
+      )}
     </div>
   );
 }
