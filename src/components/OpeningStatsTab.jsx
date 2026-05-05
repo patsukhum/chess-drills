@@ -24,8 +24,13 @@ function calcStats(games) {
   const losses = games.filter(g => g.result === 'loss').length;
   const draws  = games.filter(g => g.result === 'draw').length;
   const total  = games.length;
-  const winRate = total > 0 ? wins / total : 0;
-  return { wins, losses, draws, total, winRate };
+  const score  = total > 0 ? (wins + 0.5 * draws) / total : 0;
+  return { wins, losses, draws, total, score };
+}
+
+// Strip trailing move sequences like ", 4.dxc5 e6 5.Be3 Nd7" or " 6.Bg5 e6"
+function condenseVariation(name) {
+  return name.replace(/,?\s+\d+\..*$/, '').trim();
 }
 
 function computeTree(games) {
@@ -34,7 +39,8 @@ function computeTree(games) {
     if (!g.opening || !g.result) continue;
     const idx = g.opening.indexOf(':');
     const family    = idx >= 0 ? g.opening.slice(0, idx).trim() : g.opening.trim();
-    const variation = idx >= 0 ? g.opening.slice(idx + 1).trim() : null;
+    const rawVar    = idx >= 0 ? g.opening.slice(idx + 1).trim() : null;
+    const variation = rawVar ? condenseVariation(rawVar) : null;
     if (!families[family]) families[family] = { games: [], variations: {} };
     families[family].games.push(g);
     if (variation) {
@@ -70,8 +76,10 @@ function WinRateChart({ games, label }) {
 
   const ROLL = 10;
   const pts = sorted.map((_, i) => {
-    const win = sorted.slice(Math.max(0, i - ROLL + 1), i + 1).filter(g => g.result === 'win').length;
-    return win / Math.min(i + 1, ROLL);
+    const window = sorted.slice(Math.max(0, i - ROLL + 1), i + 1);
+    const wins  = window.filter(g => g.result === 'win').length;
+    const draws = window.filter(g => g.result === 'draw').length;
+    return (wins + 0.5 * draws) / window.length;
   });
 
   const W = 600, H = 130;
@@ -92,7 +100,7 @@ function WinRateChart({ games, label }) {
 
   return (
     <div className="stat-chart-wrap">
-      <div className="stat-chart-title">{label} — rolling {ROLL}-game win rate</div>
+      <div className="stat-chart-title">{label} — rolling {ROLL}-game score %</div>
       <svg viewBox={`0 0 ${W} ${H}`} className="stat-chart-svg" preserveAspectRatio="none">
         {[0, 0.25, 0.5, 0.75, 1].map(v => (
           <line key={v}
@@ -151,7 +159,7 @@ function FilterGroup({ label, options, value, onChange }) {
 // ── Stats row ─────────────────────────────────────────────────────────────────
 
 function StatsRow({ name, stats, indent, isSelected, isExpanded, canExpand, onToggleExpand, onSelect }) {
-  const { wins, losses, draws, total, winRate } = stats;
+  const { wins, losses, draws, total, score } = stats;
   const lowSample = total < 5;
 
   return (
@@ -173,10 +181,7 @@ function StatsRow({ name, stats, indent, isSelected, isExpanded, canExpand, onTo
         {lowSample && <span className="stat-low-sample" title="Fewer than 5 games — small sample">~</span>}
       </div>
       <div className="stat-row-games">{total}</div>
-      <div className="stat-row-bar">
-        <WinBar wins={wins} draws={draws} losses={losses} total={total} />
-      </div>
-      <div className="stat-row-pct">{Math.round(winRate * 100)}%</div>
+      <div className="stat-row-pct">{Math.round(score * 100)}%</div>
       <div className="stat-row-wld">
         <span className="stat-w">{wins}W</span>
         <span className="stat-d">{draws}D</span>
@@ -223,7 +228,7 @@ export default function OpeningStatsTab({ userId }) {
         .sort((a, b) => b.stats.total - a.stats.total),
     }));
     if (sortBy === 'games')   return entries.sort((a, b) => b.stats.total - a.stats.total);
-    if (sortBy === 'winrate') return entries.sort((a, b) => b.stats.winRate - a.stats.winRate);
+    if (sortBy === 'winrate') return entries.sort((a, b) => b.stats.score - a.stats.score);
     return entries.sort((a, b) => a.name.localeCompare(b.name));
   }, [tree, sortBy]);
 
@@ -271,7 +276,7 @@ export default function OpeningStatsTab({ userId }) {
         <span className="stat-sort-label">Sort:</span>
         {[
           { id: 'games',   label: 'Most played' },
-          { id: 'winrate', label: 'Win rate' },
+          { id: 'winrate', label: 'Score %' },
           { id: 'name',    label: 'Name' },
         ].map(s => (
           <button
@@ -295,8 +300,7 @@ export default function OpeningStatsTab({ userId }) {
             <div className="stat-header">
               <div className="stat-row-name">Opening</div>
               <div className="stat-row-games">Games</div>
-              <div className="stat-row-bar">Score</div>
-              <div className="stat-row-pct">Win%</div>
+              <div className="stat-row-pct">Score%</div>
               <div className="stat-row-wld">W / D / L</div>
             </div>
 
