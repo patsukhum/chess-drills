@@ -122,7 +122,7 @@ export function extractOnlineGameMeta(pgn, platform, username) {
 
 // ── Fetchers ──────────────────────────────────────────────────────────────────
 
-export async function fetchLichessGames(username, { max = 5000, since = null } = {}) {
+export async function fetchLichessGames(username, { max = 500, since = null } = {}) {
   let url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&opening=true&clocks=true&evals=false`;
   if (since) url += `&since=${since}`;
   const resp = await fetch(url, { headers: { Accept: 'application/x-chess-pgn' } });
@@ -132,7 +132,7 @@ export async function fetchLichessGames(username, { max = 5000, since = null } =
   return text.trim().split(/\n\n(?=\[)/).filter(Boolean);
 }
 
-export async function fetchChessComGames(username, { max = 5000, onProgress } = {}) {
+export async function fetchChessComGames(username, { max = 500, onProgress } = {}) {
   const archResp = await fetch(`https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`);
   if (archResp.status === 404) throw new Error(`Chess.com user "${username}" not found`);
   if (!archResp.ok) throw new Error(`Chess.com error: ${archResp.status}`);
@@ -158,7 +158,7 @@ export async function fetchChessComGames(username, { max = 5000, onProgress } = 
 
 // ── Import & upsert ───────────────────────────────────────────────────────────
 
-export async function importOnlineGames(userId, platform, username, { max = 5000, since = null, onProgress } = {}) {
+export async function importOnlineGames(userId, platform, username, { max = 500, since = null, onProgress } = {}) {
   const pgnList = platform === 'lichess'
     ? await fetchLichessGames(username, { max, since })
     : await fetchChessComGames(username, { max, onProgress });
