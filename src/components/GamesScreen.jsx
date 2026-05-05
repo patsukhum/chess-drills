@@ -314,7 +314,7 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
             />
           </div>
           <div className="game-detail-field">
-            <label className="game-detail-label">Phase Lost</label>
+            <label className="game-detail-label">Decisive Phase</label>
             <select
               className="game-detail-select"
               value={phase}
@@ -447,7 +447,7 @@ export default function GamesScreen({ userId, playerName, onBack }) {
   useEffect(() => {
     loadGames(0, search, filterResult);
     setPage(0);
-  }, [filterResult]);
+  }, [filterResult, userId]);
 
   useEffect(() => {
     clearTimeout(searchTimeout.current);
