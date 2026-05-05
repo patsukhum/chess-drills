@@ -186,7 +186,7 @@ export async function importOnlineGames(userId, platform, username, { max = 500,
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-export async function getOnlineGames(userId, { page = 0, search = '', filterResult = 'all', filterPlatform = 'all', filterTC = 'all' } = {}) {
+export async function getOnlineGames(userId, { page = 0, search = '', filterResult = 'all', filterPlatform = 'all', filterTC = 'all', filterColor = 'all', filterOpening = '' } = {}) {
   let query = supabase
     .from('online_games')
     .select(LIST_COLS, { count: 'exact' })
@@ -197,6 +197,8 @@ export async function getOnlineGames(userId, { page = 0, search = '', filterResu
   if (filterResult !== 'all') query = query.eq('result', filterResult);
   if (filterPlatform !== 'all') query = query.eq('platform', filterPlatform);
   if (filterTC !== 'all') query = query.eq('time_control_category', filterTC);
+  if (filterColor !== 'all') query = query.eq('player_color', filterColor);
+  if (filterOpening) query = query.ilike('opening', `%${filterOpening}%`);
   if (search) query = query.or(`opponent.ilike.%${search}%,opening.ilike.%${search}%`);
 
   const { data, error, count } = await query;

@@ -193,7 +193,7 @@ function StatsRow({ name, stats, indent, isSelected, isExpanded, canExpand, onTo
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function OpeningStatsTab({ userId }) {
+export default function OpeningStatsTab({ userId, onOpenGames }) {
   const [filterTC,    setFilterTC]    = useState('all');
   const [filterColor, setFilterColor] = useState('all');
   const [dateRange,   setDateRange]   = useState('all');
@@ -240,8 +240,10 @@ export default function OpeningStatsTab({ userId }) {
     });
   }
 
-  function selectRow(name, games) {
-    setSelected(prev => prev?.name === name ? null : { name, games });
+  // selected stores { name, games, openingFilter } where openingFilter is the
+  // precise string to pass to the games query (family or "family: variation")
+  function selectRow(name, games, openingFilter) {
+    setSelected(prev => prev?.name === name ? null : { name, games, openingFilter });
   }
 
   const totalGames = rawGames.length;
@@ -314,7 +316,7 @@ export default function OpeningStatsTab({ userId }) {
                   isExpanded={expanded.has(row.name)}
                   canExpand={row.variations.length > 0}
                   onToggleExpand={() => toggleExpand(row.name)}
-                  onSelect={() => selectRow(row.name, row.games)}
+                  onSelect={() => selectRow(row.name, row.games, row.name)}
                 />
                 {expanded.has(row.name) && row.variations.map(v => (
                   <StatsRow
@@ -326,15 +328,25 @@ export default function OpeningStatsTab({ userId }) {
                     isExpanded={false}
                     canExpand={false}
                     onToggleExpand={() => {}}
-                    onSelect={() => selectRow(v.name, v.games)}
+                    onSelect={() => selectRow(v.name, v.games, `${row.name}: ${v.name}`)}
                   />
                 ))}
               </div>
             ))}
           </div>
 
-          {selected && selected.games.length >= 2 && (
-            <WinRateChart games={selected.games} label={selected.name} />
+          {selected && (
+            <div className="stat-selected-panel">
+              {selected.games.length >= 2 && (
+                <WinRateChart games={selected.games} label={selected.name} />
+              )}
+              <button
+                className="stat-view-games-btn"
+                onClick={() => onOpenGames?.(selected.openingFilter, filterTC, filterColor)}
+              >
+                View {selected.games.length} game{selected.games.length !== 1 ? 's' : ''} →
+              </button>
+            </div>
           )}
         </>
       )}

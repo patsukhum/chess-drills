@@ -430,6 +430,7 @@ function AccountSetup({ userId, accounts, onAccountsChange }) {
 
 export default function OnlineGamesSection({ userId }) {
   const [onlineTab, setOnlineTab] = useState('games'); // 'games' | 'stats'
+  const [openingFilter, setOpeningFilter] = useState(null); // { name, filterTC, filterColor } when drilling from stats
   const [accounts, setAccounts] = useState(loadStoredAccounts);
   const [games, setGames] = useState([]);
   const [total, setTotal] = useState(0);
@@ -438,6 +439,7 @@ export default function OnlineGamesSection({ userId }) {
   const [filterResult, setFilterResult] = useState('all');
   const [filterPlatform, setFilterPlatform] = useState('all');
   const [filterTC, setFilterTC] = useState('all');
+  const [filterColor, setFilterColor] = useState('all');
   const [loading, setLoading] = useState(false);
   const [viewGame, setViewGame] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
@@ -446,24 +448,26 @@ export default function OnlineGamesSection({ userId }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasAccounts = !!(accounts.lichess || accounts['chess.com']);
 
-  const loadGames = useCallback(async (p = 0, q = search, fr = filterResult, fp = filterPlatform, ftc = filterTC) => {
+  const activeOpening = openingFilter?.name ?? '';
+
+  const loadGames = useCallback(async (p = 0, q = search, fr = filterResult, fp = filterPlatform, ftc = filterTC, fc = filterColor, fo = activeOpening) => {
     if (!userId) return;
     setLoading(true);
-    const r = await getOnlineGames(userId, { page: p, search: q, filterResult: fr, filterPlatform: fp, filterTC: ftc });
+    const r = await getOnlineGames(userId, { page: p, search: q, filterResult: fr, filterPlatform: fp, filterTC: ftc, filterColor: fc, filterOpening: fo });
     setGames(r.games);
     setTotal(r.total);
     setLoading(false);
-  }, [userId, search, filterResult, filterPlatform, filterTC]);
+  }, [userId, search, filterResult, filterPlatform, filterTC, filterColor, activeOpening]);
 
   useEffect(() => {
-    if (userId) loadGames(0, search, filterResult, filterPlatform, filterTC);
+    if (userId) loadGames(0, search, filterResult, filterPlatform, filterTC, filterColor, activeOpening);
     setPage(0);
-  }, [userId, filterResult, filterPlatform, filterTC]);
+  }, [userId, filterResult, filterPlatform, filterTC, filterColor, activeOpening]);
 
   useEffect(() => {
     clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
-      loadGames(0, search, filterResult, filterPlatform, filterTC);
+      loadGames(0, search, filterResult, filterPlatform, filterTC, filterColor, activeOpening);
       setPage(0);
     }, 300);
     return () => clearTimeout(searchTimeout.current);
@@ -472,8 +476,18 @@ export default function OnlineGamesSection({ userId }) {
   // Reload after import/sync
   function handleAccountsChange(newAccounts) {
     setAccounts(newAccounts);
-    loadGames(0, search, filterResult, filterPlatform, filterTC);
+    loadGames(0, search, filterResult, filterPlatform, filterTC, filterColor, activeOpening);
     setPage(0);
+  }
+
+  function handleOpenFromStats(filterName, tc, color) {
+    setOpeningFilter({ name: filterName });
+    setFilterTC(tc);
+    setFilterColor(color);
+    setFilterResult('all');
+    setSearch('');
+    setPage(0);
+    setOnlineTab('games');
   }
 
   async function handleOpenGame(gameId) {
@@ -520,32 +534,43 @@ export default function OnlineGamesSection({ userId }) {
       <div className="online-subtabs">
         <button
           className={`online-subtab${onlineTab === 'games' ? ' online-subtab--active' : ''}`}
-          onClick={() => setOnlineTab('games')}
+          onClick={() => { setOnlineTab('games'); setOpeningFilter(null); }}
         >
           Games
         </button>
         <button
           className={`online-subtab${onlineTab === 'stats' ? ' online-subtab--active' : ''}`}
-          onClick={() => setOnlineTab('stats')}
+          onClick={() => { setOnlineTab('stats'); setOpeningFilter(null); }}
         >
           Opening Stats
         </button>
       </div>
 
       {onlineTab === 'stats' ? (
-        <OpeningStatsTab userId={userId} />
+        <OpeningStatsTab userId={userId} onOpenGames={handleOpenFromStats} />
       ) : (
       <>
+      {openingFilter && (
+        <div className="opening-filter-header">
+          <button className="back-btn" onClick={() => { setOpeningFilter(null); setOnlineTab('stats'); }}>
+            <span className="back-btn-icon">‹</span>Opening Stats
+          </button>
+          <span className="opening-filter-label">{openingFilter.name}</span>
+        </div>
+      )}
+
       {(hasGames || search) && (
         <>
-          <div className="games-toolbar">
-            <input
-              className="games-search"
-              placeholder="Search by opponent or opening…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+          {!openingFilter && (
+            <div className="games-toolbar">
+              <input
+                className="games-search"
+                placeholder="Search by opponent or opening…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+          )}
 
           <div className="online-filter-row">
             <div className="online-filter-group">
@@ -556,6 +581,20 @@ export default function OnlineGamesSection({ userId }) {
                     key={f}
                     className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
                     onClick={() => setFilterResult(f)}
+                  >
+                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="online-filter-group">
+              <span className="online-filter-label">Color</span>
+              <div className="games-filter-tabs">
+                {['all', 'white', 'black'].map(f => (
+                  <button
+                    key={f}
+                    className={`games-filter-tab${filterColor === f ? ' games-filter-tab--active' : ''}`}
+                    onClick={() => setFilterColor(f)}
                   >
                     {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
                   </button>
