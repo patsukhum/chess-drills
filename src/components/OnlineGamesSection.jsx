@@ -130,8 +130,7 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
                 className={`movelist-cell movelist-cell--btn${row.white.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.white.idx + 1)}
               >
-                <span>{row.white.san}</span>
-                {row.white.clk && <span className="movelist-clk">{formatClock(row.white.clk)}</span>}
+                {row.white.san}
               </button>
             ) : (
               <span className="movelist-cell movelist-cell--placeholder">…</span>
@@ -141,8 +140,7 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
                 className={`movelist-cell movelist-cell--btn${row.black.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.black.idx + 1)}
               >
-                <span>{row.black.san}</span>
-                {row.black.clk && <span className="movelist-clk">{formatClock(row.black.clk)}</span>}
+                {row.black.san}
               </button>
             ) : (
               <span className="movelist-cell" />
@@ -150,6 +148,20 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Clock panel (above/below board) ──────────────────────────────────────────
+
+function ClockPanel({ name, rating, clk }) {
+  return (
+    <div className="clock-panel">
+      <div className="clock-panel-info">
+        <span className="clock-panel-name">{name}</span>
+        {rating && <span className="clock-panel-rating">{rating}</span>}
+      </div>
+      {clk && <div className="clock-panel-time">{formatClock(clk)}</div>}
     </div>
   );
 }
@@ -204,6 +216,23 @@ function OnlineGameViewer({ game, replayData, onBack }) {
   const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
   const dateStr = game.played_at ? new Date(game.played_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 
+  // Compute white/black clocks at current position
+  const { whiteClock, blackClock } = useMemo(() => {
+    let w = null, b = null;
+    for (let i = 0; i < posIdx && i < moves.length; i++) {
+      const turn = fens[i].split(' ')[1];
+      if (turn === 'w') w = moves[i].clk;
+      else b = moves[i].clk;
+    }
+    return { whiteClock: w, blackClock: b };
+  }, [posIdx, moves, fens]);
+
+  const hasClocks = moves.some(m => m.clk);
+  const topClock = orientation === 'white' ? blackClock : whiteClock;
+  const bottomClock = orientation === 'white' ? whiteClock : blackClock;
+  const opponentName = game.opponent || '?';
+  const playerName = game.platform_username || '';
+
   return (
     <div className="game-viewer-screen">
       <div className="game-viewer-nav">
@@ -224,6 +253,13 @@ function OnlineGameViewer({ game, replayData, onBack }) {
 
       <div className="study-practice-layout">
         <div className="study-practice-left">
+          {hasClocks && (
+            <ClockPanel
+              name={orientation === 'white' ? opponentName : playerName}
+              rating={orientation === 'white' ? game.opponent_rating : null}
+              clk={topClock}
+            />
+          )}
           <div className="study-board-wrap" ref={boardWrapRef}>
             {boardWidth > 0 && (
               <Chessboard
@@ -239,6 +275,13 @@ function OnlineGameViewer({ game, replayData, onBack }) {
               />
             )}
           </div>
+          {hasClocks && (
+            <ClockPanel
+              name={orientation === 'white' ? playerName : opponentName}
+              rating={orientation === 'white' ? null : game.opponent_rating}
+              clk={bottomClock}
+            />
+          )}
           <div className="viewer-controls">
             <button className="viewer-nav-btn" onClick={() => setPosIdx(0)} disabled={posIdx === 0} title="Start">⇤</button>
             <button className="viewer-nav-btn" onClick={prev} disabled={posIdx === 0} title="Previous (←)">‹</button>
