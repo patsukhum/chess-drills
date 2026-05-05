@@ -88,7 +88,7 @@ export default function StartScreen({ authUser, onSignIn, onSignOut, onStart, on
           <button className="start-btn" onClick={() => startGame(null, null)} disabled={!name.trim()}>
             Start
           </button>
-          <button className="back-btn" onClick={() => setGuestMode(false)}>← Back</button>
+          <button className="back-btn" onClick={() => setGuestMode(false)}><span className="back-btn-icon">‹</span>Back</button>
         </div>
       );
     }
@@ -111,7 +111,7 @@ export default function StartScreen({ authUser, onSignIn, onSignOut, onStart, on
   return (
     <div className="start-screen">
       <div className="start-screen-nav">
-        <button className="back-btn" onClick={onBack}>← Home</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Home</button>
       </div>
 
       <h1 className="start-title">Fork Drill</h1>

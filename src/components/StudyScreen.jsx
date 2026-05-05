@@ -29,7 +29,7 @@ function StudyList({ studies, onUpload, onPractice, onDelete, onBack }) {
   return (
     <div className="study-screen">
       <div className="study-nav">
-        <button className="back-btn" onClick={onBack}>← Home</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Home</button>
         <h2 className="study-title">My Studies</h2>
       </div>
 
@@ -86,7 +86,7 @@ function StudyChapterSelect({ chapters, onSelect, onBack }) {
   return (
     <div className="study-screen">
       <div className="study-nav">
-        <button className="back-btn" onClick={onBack}>← Studies</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Studies</button>
         <h2 className="study-title">Chapters</h2>
       </div>
       <div className="study-list">
@@ -396,7 +396,7 @@ function StudyPractice({ chapter, onBack, onNext }) {
     return (
       <div className="study-practice">
         <div className="study-nav">
-          <button className="back-btn" onClick={onBack}>← Chapters</button>
+          <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Chapters</button>
           <span className="study-chapter-name">{name}</span>
         </div>
         <div className="study-practice-layout">

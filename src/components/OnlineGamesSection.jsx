@@ -236,7 +236,7 @@ function OnlineGameViewer({ game, replayData, onBack }) {
   return (
     <div className="game-viewer-screen">
       <div className="game-viewer-nav">
-        <button className="back-btn" onClick={onBack}>← Online Games</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Online Games</button>
         <div className="game-viewer-title-row">
           {colorCircle && <span className="viewer-color-circle">{colorCircle}</span>}
           <span className="game-name-title" style={{ cursor: 'default' }}>{game.name}</span>
@@ -527,38 +527,47 @@ export default function OnlineGamesSection({ userId }) {
           </div>
 
           <div className="online-filter-row">
-            <div className="games-filter-tabs">
-              {['all', 'win', 'loss', 'draw'].map(f => (
-                <button
-                  key={f}
-                  className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
-                  onClick={() => setFilterResult(f)}
-                >
-                  {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
+            <div className="online-filter-group">
+              <span className="online-filter-label">Result</span>
+              <div className="games-filter-tabs">
+                {['all', 'win', 'loss', 'draw'].map(f => (
+                  <button
+                    key={f}
+                    className={`games-filter-tab${filterResult === f ? ' games-filter-tab--active' : ''}`}
+                    onClick={() => setFilterResult(f)}
+                  >
+                    {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="games-filter-tabs">
-              {['all', 'bullet', 'blitz', 'rapid', 'classical'].map(f => (
-                <button
-                  key={f}
-                  className={`games-filter-tab${filterTC === f ? ' games-filter-tab--active' : ''}`}
-                  onClick={() => setFilterTC(f)}
-                >
-                  {f === 'all' ? 'All TC' : TC_LABELS[f]}
-                </button>
-              ))}
+            <div className="online-filter-group">
+              <span className="online-filter-label">Time</span>
+              <div className="games-filter-tabs">
+                {['all', 'bullet', 'blitz', 'rapid', 'classical'].map(f => (
+                  <button
+                    key={f}
+                    className={`games-filter-tab${filterTC === f ? ' games-filter-tab--active' : ''}`}
+                    onClick={() => setFilterTC(f)}
+                  >
+                    {f === 'all' ? 'All' : TC_LABELS[f]}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="games-filter-tabs">
-              {['all', 'lichess', 'chess.com'].map(f => (
-                <button
-                  key={f}
-                  className={`games-filter-tab${filterPlatform === f ? ' games-filter-tab--active' : ''}`}
-                  onClick={() => setFilterPlatform(f)}
-                >
-                  {f === 'all' ? 'All' : f === 'lichess' ? 'Lichess' : 'Chess.com'}
-                </button>
-              ))}
+            <div className="online-filter-group">
+              <span className="online-filter-label">Platform</span>
+              <div className="games-filter-tabs">
+                {['all', 'lichess', 'chess.com'].map(f => (
+                  <button
+                    key={f}
+                    className={`games-filter-tab${filterPlatform === f ? ' games-filter-tab--active' : ''}`}
+                    onClick={() => setFilterPlatform(f)}
+                  >
+                    {f === 'all' ? 'All' : f === 'lichess' ? 'Lichess' : 'Chess.com'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </>

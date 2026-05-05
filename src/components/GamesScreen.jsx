@@ -200,7 +200,7 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
   return (
     <div className="game-viewer-screen">
       <div className="game-viewer-nav">
-        <button className="back-btn" onClick={onBack}>← Games</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Games</button>
         <div className="game-viewer-title-row">
           {colorCircle && <span className="viewer-color-circle">{colorCircle}</span>}
           {editingName ? (
@@ -536,7 +536,7 @@ export default function GamesScreen({ userId, playerName, onBack }) {
   return (
     <div className="games-screen">
       <div className="games-nav">
-        <button className="back-btn" onClick={onBack}>← Home</button>
+        <button className="back-btn" onClick={onBack}><span className="back-btn-icon">‹</span>Home</button>
         <h2 className="study-title">My Games</h2>
         {tab === 'tournament'
           ? <button className="upload-btn" onClick={() => setShowAdd(true)}>+ Add Games</button>
