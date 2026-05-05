@@ -35,7 +35,12 @@ export function extractOnlineGameMeta(pgn, platform, username) {
   const whiteElo = tag(pgn, 'WhiteElo');
   const blackElo = tag(pgn, 'BlackElo');
   const resultHeader = tag(pgn, 'Result');
-  const opening = tag(pgn, 'Opening') || null;
+  // Lichess: [Opening "..."], Chess.com: [ECOUrl "https://www.chess.com/openings/Sicilian-Defense-..."]
+  const ecoUrl = tag(pgn, 'ECOUrl');
+  const openingFromUrl = ecoUrl
+    ? ecoUrl.split('/').pop().replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || null
+    : null;
+  const opening = tag(pgn, 'Opening') || openingFromUrl || null;
   const eco = tag(pgn, 'ECO') || null;
   const tcHeader = tag(pgn, 'TimeControl') || null;
   const utcDate = tag(pgn, 'UTCDate');
@@ -161,7 +166,7 @@ export async function importOnlineGames(userId, platform, username, { max = 5000
     const batch = records.slice(i, i + BATCH_SIZE);
     const { error } = await supabase
       .from('online_games')
-      .upsert(batch, { onConflict: 'user_id,platform,platform_game_id', ignoreDuplicates: true });
+      .upsert(batch, { onConflict: 'user_id,platform,platform_game_id' });
     if (error) throw error;
     saved += batch.length;
     onProgress?.(saved, records.length);

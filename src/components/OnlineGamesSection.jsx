@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
 import { Chessboard } from 'react-chessboard';
-import { useLayoutEffect } from 'react';
-import { useMemo } from 'react';
 import {
   importOnlineGames,
   getOnlineGames,
@@ -54,11 +52,74 @@ function OnlineGameRow({ game, onOpen }) {
   );
 }
 
+// ── Move list ─────────────────────────────────────────────────────────────────
+
+function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
+  const activeIdx = posIdx - 1;
+
+  const rows = useMemo(() => {
+    const result = [];
+    let i = 0;
+    while (i < moves.length) {
+      const parts = fens[i].split(' ');
+      const moveNum = parseInt(parts[5]);
+      const turn = parts[1];
+      if (turn === 'w') {
+        result.push({
+          moveNum,
+          white: { idx: i, san: moves[i].san },
+          black: i + 1 < moves.length ? { idx: i + 1, san: moves[i + 1].san } : null,
+        });
+        i += i + 1 < moves.length ? 2 : 1;
+      } else {
+        result.push({ moveNum, white: null, black: { idx: i, san: moves[i].san } });
+        i++;
+      }
+    }
+    return result;
+  }, [moves, fens]);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.querySelector('.movelist-cell--active');
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [posIdx]);
+
+  return (
+    <div className="study-movelist" ref={listRef}>
+      {rows.map((row, ri) => (
+        <div key={ri} className="movelist-row-group">
+          <div className="movelist-row">
+            <span className="movelist-num">{row.moveNum}.</span>
+            {row.white ? (
+              <button
+                className={`movelist-cell movelist-cell--btn${row.white.idx === activeIdx ? ' movelist-cell--active' : ''}`}
+                onClick={() => onJump(row.white.idx + 1)}
+              >{row.white.san}</button>
+            ) : (
+              <span className="movelist-cell movelist-cell--placeholder">…</span>
+            )}
+            {row.black ? (
+              <button
+                className={`movelist-cell movelist-cell--btn${row.black.idx === activeIdx ? ' movelist-cell--active' : ''}`}
+                onClick={() => onJump(row.black.idx + 1)}
+              >{row.black.san}</button>
+            ) : (
+              <span className="movelist-cell" />
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Mini viewer (read-only, no editing) ──────────────────────────────────────
 
 function OnlineGameViewer({ game, replayData, onBack }) {
   const [posIdx, setPosIdx] = useState(0);
   const boardWrapRef = useRef(null);
+  const movelistRef = useRef(null);
   const [boardWidth, setBoardWidth] = useState(400);
 
   const { fens, moves } = replayData;
@@ -146,6 +207,14 @@ function OnlineGameViewer({ game, replayData, onBack }) {
             <button className="viewer-nav-btn" onClick={() => setPosIdx(totalPos - 1)} disabled={posIdx === totalPos - 1} title="End">⇥</button>
           </div>
         </div>
+
+        <ViewerMoveList
+          moves={moves}
+          fens={fens}
+          posIdx={posIdx}
+          onJump={setPosIdx}
+          listRef={movelistRef}
+        />
       </div>
     </div>
   );
