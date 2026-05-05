@@ -6,11 +6,12 @@ function splitGames(pgn) {
 }
 
 function cleanPgn(pgn) {
-  // Remove Lichess graphic annotation comments: { [%csl ...] } { [%cal ...] }
-  // Then merge any remaining consecutive {} comment blocks into one — chess.js
-  // chokes when two comment tokens appear after the same move.
+  // Remove only graphic annotation markers (csl/cal) from inside comments.
+  // [%clk] must be preserved so clock data survives into chess.js parsing.
+  // Then remove now-empty comment blocks and merge consecutive ones.
   return pgn
-    .replace(/\{\s*\[%[^\]]*\][^}]*\}/g, '')
+    .replace(/\[%(?:csl|cal)\b[^\]]*\]/g, '')
+    .replace(/\{\s*\}/g, '')
     .replace(/\}\s*\{/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .trim();

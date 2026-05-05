@@ -5,6 +5,17 @@ const BATCH_SIZE = 200;
 
 const LIST_COLS = 'id, platform, platform_game_id, platform_username, name, opening, eco, result, player_color, opponent, opponent_rating, time_control, time_control_category, game_date, played_at, created_at';
 
+// ── Opening helpers ───────────────────────────────────────────────────────────
+
+// Convert Chess.com ECOUrl slug to "Family: Variation" format.
+// e.g. "Sicilian-Defense-Najdorf-Variation" → "Sicilian Defense: Najdorf Variation"
+function ecoUrlToOpening(url) {
+  const slug = url.split('/').pop().replace(/-/g, ' ');
+  // Split after the first occurrence of a common family-ending word
+  const m = slug.match(/^(.+?(?:Defense|Opening|Gambit|Attack|Game|System|Declined|Accepted|Exchange|Indian|Formation))\s+(.+)$/i);
+  return m ? `${m[1]}: ${m[2]}` : slug;
+}
+
 // ── Time control ──────────────────────────────────────────────────────────────
 
 export function categorizeTimeControl(tcHeader) {
@@ -35,11 +46,9 @@ export function extractOnlineGameMeta(pgn, platform, username) {
   const whiteElo = tag(pgn, 'WhiteElo');
   const blackElo = tag(pgn, 'BlackElo');
   const resultHeader = tag(pgn, 'Result');
-  // Lichess: [Opening "..."], Chess.com: [ECOUrl "https://www.chess.com/openings/Sicilian-Defense-..."]
+  // Lichess: [Opening "Family: Variation"], Chess.com: [ECOUrl ".../Sicilian-Defense-Najdorf-Variation"]
   const ecoUrl = tag(pgn, 'ECOUrl');
-  const openingFromUrl = ecoUrl
-    ? ecoUrl.split('/').pop().replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || null
-    : null;
+  const openingFromUrl = ecoUrl ? ecoUrlToOpening(ecoUrl) : null;
   const opening = tag(pgn, 'Opening') || openingFromUrl || null;
   const eco = tag(pgn, 'ECO') || null;
   const tcHeader = tag(pgn, 'TimeControl') || null;
