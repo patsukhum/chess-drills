@@ -9,7 +9,7 @@ function GoogleIcon() {
   );
 }
 
-export default function HomeScreen({ authUser, onSignIn, onForkDrill, onStudy }) {
+export default function HomeScreen({ authUser, onSignIn, onForkDrill, onStudy, onGames }) {
   return (
     <div className="home-screen">
       <div className="home-hero">
@@ -41,6 +41,16 @@ export default function HomeScreen({ authUser, onSignIn, onForkDrill, onStudy })
             guide you through each move.
           </p>
           <span className="home-mode-cta">Study →</span>
+        </button>
+
+        <button className="home-mode-card" onClick={onGames}>
+          <div className="home-mode-icon">♖</div>
+          <h2 className="home-mode-title">My Games</h2>
+          <p className="home-mode-desc">
+            Import your games and replay them. Auto-tagged with opening, result,
+            opponent, and time control.
+          </p>
+          <span className="home-mode-cta">Review →</span>
         </button>
       </main>
     </div>

@@ -70,3 +70,41 @@ export function pgnToChapters(pgn) {
 export function pgnToPositions(pgn) {
   return pgnToChapters(pgn).flatMap(ch => ch.positions);
 }
+
+export function splitPgn(pgn) {
+  return splitGames(pgn);
+}
+
+export function pgnToReplayData(pgn) {
+  let chapter;
+  try {
+    chapter = parseGame(cleanPgn(pgn));
+  } catch {
+    return null;
+  }
+  if (!chapter) return null;
+  const { positions, introComment } = chapter;
+
+  const fenMatch = pgn.match(/\[FEN\s+"([^"]+)"\]/);
+  const startFen = fenMatch ? fenMatch[1] : null;
+  const replay = startFen ? new Chess(startFen) : new Chess();
+
+  const fens = [replay.fen()];
+  for (const pos of positions) {
+    try {
+      replay.move({ from: pos.from, to: pos.to, ...(pos.promotion ? { promotion: pos.promotion } : {}) });
+    } catch {
+      break;
+    }
+    fens.push(replay.fen());
+  }
+
+  const moves = positions.slice(0, fens.length - 1).map(p => ({
+    san: p.san,
+    comment: p.comment,
+    from: p.from,
+    to: p.to,
+  }));
+
+  return { fens, moves, introComment };
+}

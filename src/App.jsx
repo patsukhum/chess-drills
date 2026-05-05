@@ -8,6 +8,7 @@ import ScorePanel from './components/ScorePanel.jsx';
 import GameOver from './components/GameOver.jsx';
 import StartScreen from './components/StartScreen.jsx';
 import StudyScreen from './components/StudyScreen.jsx';
+import GamesScreen from './components/GamesScreen.jsx';
 import { isValidForkMove } from './logic/chess.js';
 import { generatePosition } from './logic/position.js';
 import { saveScore } from './logic/leaderboard.js';
@@ -26,7 +27,7 @@ function freshGame(targetType = 'rook') {
 }
 
 export default function App() {
-  const [appPhase, setAppPhase] = useState('home'); // 'home' | 'start' | 'playing' | 'gameover' | 'study'
+  const [appPhase, setAppPhase] = useState('home'); // 'home' | 'start' | 'playing' | 'gameover' | 'study' | 'games'
   const [authUser, setAuthUser] = useState(undefined); // undefined=loading, null=not authed, {name,id}=authed
   const [playerName, setPlayerName] = useState('');
   const [game, setGame] = useState(null);
@@ -148,6 +149,7 @@ export default function App() {
             onSignIn={handleSignIn}
             onForkDrill={() => setAppPhase('start')}
             onStudy={() => setAppPhase('study')}
+            onGames={() => setAppPhase('games')}
           />
         </div>
       </>
@@ -177,6 +179,21 @@ export default function App() {
         {nav}
         <div className="app app--wide">
           <StudyScreen userId={authUser?.id || null} onBack={() => setAppPhase('home')} />
+        </div>
+      </>
+    );
+  }
+
+  if (appPhase === 'games') {
+    return (
+      <>
+        {nav}
+        <div className="app app--wide">
+          <GamesScreen
+            userId={authUser?.id || null}
+            playerName={authUser?.name || null}
+            onBack={() => setAppPhase('home')}
+          />
         </div>
       </>
     );
