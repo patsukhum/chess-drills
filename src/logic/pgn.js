@@ -27,6 +27,7 @@ function parseGame(rawGame) {
   // mismatch bugs when the same position is reached twice (transposition).
   const clkTimes = [];
   for (const m of rawGame.matchAll(/\[%clk\s+(\d+:\d+:\d+)\]/g)) clkTimes.push(m[1]);
+  console.log('[pgn] clocks found:', clkTimes.length, '| first 200 chars:', rawGame.slice(0, 200));
 
   const gamePgn = cleanPgn(rawGame);
   const chess = new Chess();
