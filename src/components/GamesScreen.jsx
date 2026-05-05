@@ -345,8 +345,11 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
 
 // ── Add game modal ────────────────────────────────────────────────────────────
 
+const CHESS_USERNAME_KEY = 'chess_drill_chess_username';
+
 function AddGameModal({ onAdd, onClose }) {
   const [pgn, setPgn] = useState('');
+  const [chessUsername, setChessUsername] = useState(() => localStorage.getItem(CHESS_USERNAME_KEY) || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -354,10 +357,12 @@ function AddGameModal({ onAdd, onClose }) {
     e.preventDefault();
     const trimmed = pgn.trim();
     if (!trimmed) return;
+    const username = chessUsername.trim();
+    if (username) localStorage.setItem(CHESS_USERNAME_KEY, username);
     setSaving(true);
     setError('');
     try {
-      await onAdd(trimmed);
+      await onAdd(trimmed, username || null);
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to save. Check the PGN and try again.');
@@ -372,14 +377,24 @@ function AddGameModal({ onAdd, onClose }) {
           <h3 className="modal-title">Add Game(s)</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <p className="modal-hint">Paste a single game or a multi-game PGN. Each game becomes a separate entry.</p>
         <form onSubmit={handleSubmit}>
+          <div className="modal-username-row">
+            <label className="game-detail-label">Your username (Lichess / Chess.com)</label>
+            <input
+              className="game-detail-input"
+              value={chessUsername}
+              onChange={e => setChessUsername(e.target.value)}
+              placeholder="e.g. Magnus"
+              maxLength={40}
+            />
+            <p className="modal-hint" style={{ marginTop: 4 }}>Used to auto-detect which color you played and win/loss/draw.</p>
+          </div>
           <textarea
             className="pgn-textarea"
             placeholder="[Event &quot;...&quot;]&#10;[White &quot;...&quot;]&#10;...&#10;1. e4 e5 ..."
             value={pgn}
             onChange={e => setPgn(e.target.value)}
-            rows={10}
+            rows={9}
             autoFocus
           />
           {error && <p className="study-error">{error}</p>}
@@ -481,10 +496,11 @@ export default function GamesScreen({ userId, playerName, onBack }) {
     }
   }
 
-  async function handleAdd(pgn) {
+  async function handleAdd(pgn, chessUsername) {
+    const nameForLookup = chessUsername || playerName;
     const parts = splitPgn(pgn);
     for (const part of parts) {
-      await saveGame(userId, part, playerName);
+      await saveGame(userId, part, nameForLookup);
     }
     setPage(0);
     setSearch('');
