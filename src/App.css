@@ -2122,37 +2122,40 @@ body {
 }
 
 .stat-row-games {
-  width: 38px;
+  width: 44px;
   flex-shrink: 0;
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-muted);
+  overflow: hidden;
 }
 
 .stat-row-pct {
-  width: 44px;
+  width: 56px;
   flex-shrink: 0;
   text-align: right;
   font-size: 0.82rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
 
 .stat-row-wld {
-  width: 72px;
+  width: 108px;
   flex-shrink: 0;
   display: flex;
-  gap: 3px;
-  font-size: 0.76rem;
+  gap: 4px;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   justify-content: flex-end;
+  overflow: hidden;
 }
 
 @media (max-width: 480px) {
   .stat-row-games { display: none; }
   .stat-header .stat-row-games { display: none; }
   .stat-row { gap: 6px; padding: 7px 8px; }
-  .stat-row-wld { width: 66px; font-size: 0.72rem; }
+  .stat-row-wld { width: 96px; font-size: 0.74rem; }
 }
 
 .stat-w { color: #5c5; }
