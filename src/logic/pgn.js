@@ -7,9 +7,13 @@ function splitGames(pgn) {
 
 function cleanPgn(pgn) {
   // Remove Lichess graphic annotation comments: { [%csl ...] } { [%cal ...] }
-  // These appear as standalone comment blocks and cause chess.js to choke on
-  // consecutive {} comments after the same move.
-  return pgn.replace(/\{\s*\[%[^\]]*\][^}]*\}/g, '').replace(/[ \t]+/g, ' ').trim();
+  // Then merge any remaining consecutive {} comment blocks into one — chess.js
+  // chokes when two comment tokens appear after the same move.
+  return pgn
+    .replace(/\{\s*\[%[^\]]*\][^}]*\}/g, '')
+    .replace(/\}\s*\{/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
 }
 
 function parseGame(rawGame) {
