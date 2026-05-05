@@ -128,7 +128,7 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
                 className={`movelist-cell movelist-cell--btn${row.white.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.white.idx + 1)}
               >
-                {row.white.san}
+                <span>{row.white.san}</span>
                 {row.white.clk && <span className="movelist-clk">{formatClock(row.white.clk)}</span>}
               </button>
             ) : (
@@ -139,7 +139,7 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
                 className={`movelist-cell movelist-cell--btn${row.black.idx === activeIdx ? ' movelist-cell--active' : ''}`}
                 onClick={() => onJump(row.black.idx + 1)}
               >
-                {row.black.san}
+                <span>{row.black.san}</span>
                 {row.black.clk && <span className="movelist-clk">{formatClock(row.black.clk)}</span>}
               </button>
             ) : (
