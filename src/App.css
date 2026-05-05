@@ -1184,7 +1184,7 @@ body {
 
 .movelist-row {
   display: flex;
-  align-items: baseline;
+  align-items: stretch;
   gap: 2px;
   padding: 1px 0;
 }
@@ -1198,6 +1198,7 @@ body {
   color: var(--text-muted);
   user-select: none;
   line-height: 1.8;
+  align-self: flex-start;
 }
 
 .movelist-cell {
@@ -1268,13 +1269,12 @@ body {
   font-size: 0.88rem;
   padding: 2px 6px;
   border-radius: 3px;
-  line-height: 1.8;
   text-align: left;
   width: 100%;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }
 
 .movelist-cell--btn:hover:not(.movelist-cell--active) {
@@ -1282,13 +1282,14 @@ body {
 }
 
 .movelist-clk {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
   font-weight: 400;
   font-family: system-ui, sans-serif;
   letter-spacing: -0.01em;
-  flex-shrink: 0;
   opacity: 0.75;
+  line-height: 1.4;
+  padding-bottom: 2px;
 }
 .movelist-cell--active .movelist-clk {
   color: rgba(255,255,255,0.65);
