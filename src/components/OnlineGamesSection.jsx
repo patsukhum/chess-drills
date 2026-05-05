@@ -255,8 +255,8 @@ function OnlineGameViewer({ game, replayData, onBack }) {
         <div className="study-practice-left">
           {hasClocks && (
             <ClockPanel
-              name={orientation === 'white' ? opponentName : playerName}
-              rating={orientation === 'white' ? game.opponent_rating : null}
+              name={opponentName}
+              rating={game.opponent_rating}
               clk={topClock}
             />
           )}
@@ -277,8 +277,8 @@ function OnlineGameViewer({ game, replayData, onBack }) {
           </div>
           {hasClocks && (
             <ClockPanel
-              name={orientation === 'white' ? playerName : opponentName}
-              rating={orientation === 'white' ? null : game.opponent_rating}
+              name={playerName}
+              rating={null}
               clk={bottomClock}
             />
           )}
