@@ -9,28 +9,18 @@ function GoogleIcon() {
   );
 }
 
-export default function HomeScreen({ authUser, onSignIn, onSignOut, onForkDrill, onStudy }) {
+export default function HomeScreen({ authUser, onSignIn, onForkDrill, onStudy }) {
   return (
     <div className="home-screen">
-      <header className="home-header">
-        <div className="home-logo">
-          <span className="home-logo-icon">♟</span>
-          <h1 className="home-title">Chess Drills</h1>
-        </div>
-        <div className="home-auth">
-          {authUser === undefined ? null : authUser ? (
-            <div className="home-auth-signed-in">
-              <span className="home-auth-name">{authUser.name}</span>
-              <button className="home-sign-out-btn" onClick={onSignOut}>Sign out</button>
-            </div>
-          ) : (
-            <button className="home-google-btn" onClick={onSignIn}>
-              <GoogleIcon />
-              Sign in
-            </button>
-          )}
-        </div>
-      </header>
+      <div className="home-hero">
+        <h2 className="home-headline">Train your chess pattern recognition</h2>
+        {authUser === null && (
+          <button className="home-signin-prompt" onClick={onSignIn}>
+            <GoogleIcon />
+            Sign in to save scores &amp; studies
+          </button>
+        )}
+      </div>
 
       <main className="home-modes">
         <button className="home-mode-card" onClick={onForkDrill}>

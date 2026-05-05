@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase.js';
 import { getOrCreateProfile } from './logic/profile.js';
+import TopNav from './components/TopNav.jsx';
 import HomeScreen from './components/HomeScreen.jsx';
 import Board from './components/Board.jsx';
 import ScorePanel from './components/ScorePanel.jsx';
@@ -31,7 +32,6 @@ export default function App() {
   const [game, setGame] = useState(null);
   const isProcessing = useRef(false);
 
-  // Auth state — shared across all screens
   useEffect(() => {
     async function resolveUser(u) {
       if (!u) return null;
@@ -64,7 +64,6 @@ export default function App() {
     await supabase.auth.signOut();
   }
 
-  // Timer
   useEffect(() => {
     if (appPhase !== 'playing') return;
     const id = setInterval(() => {
@@ -130,61 +129,81 @@ export default function App() {
     setGame(null);
   }
 
+  const nav = (
+    <TopNav
+      authUser={authUser}
+      onSignIn={handleSignIn}
+      onSignOut={handleSignOut}
+      onHome={() => setAppPhase('home')}
+    />
+  );
+
   if (appPhase === 'home') {
     return (
-      <div className="app app--wide">
-        <HomeScreen
-          authUser={authUser}
-          onSignIn={handleSignIn}
-          onSignOut={handleSignOut}
-          onForkDrill={() => setAppPhase('start')}
-          onStudy={() => setAppPhase('study')}
-        />
-      </div>
+      <>
+        {nav}
+        <div className="app app--wide">
+          <HomeScreen
+            authUser={authUser}
+            onSignIn={handleSignIn}
+            onForkDrill={() => setAppPhase('start')}
+            onStudy={() => setAppPhase('study')}
+          />
+        </div>
+      </>
     );
   }
 
   if (appPhase === 'start') {
     return (
-      <div className="app">
-        <StartScreen
-          authUser={authUser}
-          onSignIn={handleSignIn}
-          onSignOut={handleSignOut}
-          onStart={handleStart}
-          onBack={() => setAppPhase('home')}
-        />
-      </div>
+      <>
+        {nav}
+        <div className="app">
+          <StartScreen
+            authUser={authUser}
+            onSignIn={handleSignIn}
+            onSignOut={handleSignOut}
+            onStart={handleStart}
+            onBack={() => setAppPhase('home')}
+          />
+        </div>
+      </>
     );
   }
 
   if (appPhase === 'study') {
     return (
-      <div className="app app--wide">
-        <StudyScreen userId={authUser?.id || null} onBack={() => setAppPhase('home')} />
-      </div>
+      <>
+        {nav}
+        <div className="app app--wide">
+          <StudyScreen userId={authUser?.id || null} onBack={() => setAppPhase('home')} />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="app">
-      <h1 className="title">Fork Drill</h1>
-      <ScorePanel score={game.score} secondsLeft={game.secondsLeft} />
-      <Board
-        boardState={game.boardState}
-        onSquareClick={handleSquareClick}
-        lastClick={game.lastClick}
-        feedback={game.feedback}
-        queenAnimation={game.queenAnimation}
-      />
-      {appPhase === 'gameover' && (
-        <GameOver
-          score={game.score}
-          playerName={playerName}
-          pieceType={game.targetType}
-          onPlayAgain={handlePlayAgain}
+    <>
+      {nav}
+      <div className="app">
+        <h1 className="title">Fork Drill</h1>
+        <ScorePanel score={game.score} secondsLeft={game.secondsLeft} />
+        <Board
+          boardState={game.boardState}
+          onSquareClick={handleSquareClick}
+          lastClick={game.lastClick}
+          feedback={game.feedback}
+          queenAnimation={game.queenAnimation}
         />
-      )}
-    </div>
+        {appPhase === 'gameover' && (
+          <GameOver
+            score={game.score}
+            playerName={playerName}
+            pieceType={game.targetType}
+            onPlayAgain={handlePlayAgain}
+          />
+        )}
+      </div>
+    </>
   );
 }
