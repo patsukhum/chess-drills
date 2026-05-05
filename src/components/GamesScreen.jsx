@@ -1,28 +1,20 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { Chessboard } from 'react-chessboard';
-import { getGames, getGamePgn, saveGame, importGames, deleteGame, updateGameTags, updateGameName } from '../logic/games.js';
+import { getGames, getGamePgn, saveGame, deleteGame, updateGameField } from '../logic/games.js';
 import { pgnToReplayData, splitPgn } from '../logic/pgn.js';
 
 const PAGE_SIZE = 20;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const PHASE_OPTIONS = [
+  { value: 'opening',          label: 'Opening' },
+  { value: 'early_middlegame', label: 'Early Middlegame' },
+  { value: 'middlegame',       label: 'Middlegame' },
+  { value: 'late_middlegame',  label: 'Late Middlegame' },
+  { value: 'endgame',          label: 'Endgame' },
+];
 
-function ResultBadge({ result }) {
-  if (!result) return null;
-  const cfg = { win: ['W', '#2d7d2d'], loss: ['L', '#aa2222'], draw: ['D', '#666'] };
-  const [label, bg] = cfg[result] || ['?', '#555'];
-  return <span className="result-badge" style={{ background: bg }}>{label}</span>;
-}
-
-function TagBadge({ label, onRemove }) {
-  return (
-    <span className="tag-badge">
-      {label}
-      {onRemove && (
-        <button className="tag-badge-remove" onClick={onRemove} title="Remove tag">×</button>
-      )}
-    </span>
-  );
+function phaseLabel(value) {
+  return PHASE_OPTIONS.find(o => o.value === value)?.label || '';
 }
 
 // ── Move list (viewer / read-only + clickable) ────────────────────────────────
@@ -109,14 +101,19 @@ function ViewerMoveList({ moves, fens, posIdx, onJump, listRef }) {
 
 // ── Game viewer ───────────────────────────────────────────────────────────────
 
-function GameViewer({ game, replayData, onBack, onDelete, onUpdateTags, onUpdateName }) {
+function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
   const [posIdx, setPosIdx] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [nameVal, setNameVal] = useState(game.name);
-  const [newTag, setNewTag] = useState('');
   const movelistRef = useRef(null);
   const boardWrapRef = useRef(null);
   const [boardWidth, setBoardWidth] = useState(400);
+
+  // Local copies of editable fields (auto-save on blur)
+  const [opening, setOpening] = useState(game.opening || '');
+  const [oppRating, setOppRating] = useState(game.opponent_rating?.toString() || '');
+  const [phase, setPhase] = useState(game.phase || '');
+  const [notes, setNotes] = useState(game.notes || '');
 
   const { fens, moves, introComment } = replayData;
   const totalPos = fens.length;
@@ -126,7 +123,7 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateTags, onUpdate
 
   useEffect(() => {
     function onKey(e) {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       if (e.key === 'ArrowLeft') prev();
       if (e.key === 'ArrowRight') next();
     }
@@ -159,61 +156,57 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateTags, onUpdate
 
   const orientation = game.player_color === 'black' ? 'black' : 'white';
 
-  function handleSaveName() {
+  function saveName() {
     const trimmed = nameVal.trim();
-    if (trimmed && trimmed !== game.name) onUpdateName(game.id, trimmed);
+    if (trimmed && trimmed !== game.name) onUpdateField(game.id, { name: trimmed });
     setEditingName(false);
   }
 
-  function handleAddTag(e) {
-    e.preventDefault();
-    const tag = newTag.trim();
-    if (!tag || game.tags.includes(tag)) { setNewTag(''); return; }
-    onUpdateTags(game.id, [...game.tags, tag]);
-    setNewTag('');
+  function saveOpening() {
+    const val = opening.trim() || null;
+    if (val !== (game.opening || null)) onUpdateField(game.id, { opening: val });
   }
 
-  function handleRemoveTag(tag) {
-    onUpdateTags(game.id, game.tags.filter(t => t !== tag));
+  function saveOppRating() {
+    const val = oppRating.trim() ? parseInt(oppRating) || null : null;
+    if (val !== (game.opponent_rating || null)) onUpdateField(game.id, { opponent_rating: val });
   }
 
-  const autoTags = [
-    game.opening && { key: 'opening', label: game.opening },
-    game.eco && { key: 'eco', label: game.eco },
-    game.opponent && { key: 'opponent', label: `vs ${game.opponent}` },
-    game.time_control && { key: 'tc', label: game.time_control },
-    game.game_date && { key: 'date', label: game.game_date.replace(/\./g, '-') },
-  ].filter(Boolean);
+  function savePhase(val) {
+    setPhase(val);
+    onUpdateField(game.id, { phase: val || null });
+  }
+
+  function saveNotes() {
+    const val = notes.trim() || null;
+    if (val !== (game.notes || null)) onUpdateField(game.id, { notes: val });
+  }
+
+  const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
 
   return (
     <div className="game-viewer-screen">
       <div className="game-viewer-nav">
         <button className="back-btn" onClick={onBack}>← Games</button>
-        {editingName ? (
-          <input
-            className="game-name-input"
-            value={nameVal}
-            onChange={e => setNameVal(e.target.value)}
-            onBlur={handleSaveName}
-            onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') { setNameVal(game.name); setEditingName(false); } }}
-            autoFocus
-            maxLength={80}
-          />
-        ) : (
-          <button className="game-name-title" onClick={() => setEditingName(true)} title="Click to rename">
-            {game.name}
-          </button>
-        )}
+        <div className="game-viewer-title-row">
+          {colorCircle && <span className="viewer-color-circle">{colorCircle}</span>}
+          {editingName ? (
+            <input
+              className="game-name-input"
+              value={nameVal}
+              onChange={e => setNameVal(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameVal(game.name); setEditingName(false); } }}
+              autoFocus
+              maxLength={80}
+            />
+          ) : (
+            <button className="game-name-title" onClick={() => setEditingName(true)} title="Click to rename">
+              {game.name}
+            </button>
+          )}
+        </div>
         <button className="viewer-delete-btn" onClick={() => onDelete(game.id)} title="Delete game">✕</button>
-      </div>
-
-      <div className="viewer-tags">
-        <ResultBadge result={game.result} />
-        {autoTags.map(t => <TagBadge key={t.key} label={t.label} />)}
-        {game.tags.map(t => <TagBadge key={t} label={t} onRemove={() => handleRemoveTag(t)} />)}
-        {introComment && (
-          <span className="viewer-intro-comment">{introComment}</span>
-        )}
       </div>
 
       <div className="study-practice-layout">
@@ -241,17 +234,6 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateTags, onUpdate
             <button className="viewer-nav-btn" onClick={next} disabled={posIdx === totalPos - 1} title="Next (→)">›</button>
             <button className="viewer-nav-btn" onClick={() => setPosIdx(totalPos - 1)} disabled={posIdx === totalPos - 1} title="End">⇥</button>
           </div>
-
-          <form className="viewer-tag-form" onSubmit={handleAddTag}>
-            <input
-              className="viewer-tag-input"
-              placeholder="Add tag…"
-              value={newTag}
-              onChange={e => setNewTag(e.target.value)}
-              maxLength={30}
-            />
-            <button className="viewer-tag-add-btn" type="submit" disabled={!newTag.trim()}>Add</button>
-          </form>
         </div>
 
         <ViewerMoveList
@@ -261,6 +243,63 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateTags, onUpdate
           onJump={setPosIdx}
           listRef={movelistRef}
         />
+      </div>
+
+      {introComment && (
+        <p className="viewer-intro-comment">{introComment}</p>
+      )}
+
+      <div className="game-details-panel">
+        <div className="game-details-grid">
+          <div className="game-detail-field">
+            <label className="game-detail-label">Opening</label>
+            <input
+              className="game-detail-input"
+              value={opening}
+              onChange={e => setOpening(e.target.value)}
+              onBlur={saveOpening}
+              placeholder="e.g. Sicilian Defense"
+              maxLength={80}
+            />
+          </div>
+          <div className="game-detail-field">
+            <label className="game-detail-label">Opponent Rating</label>
+            <input
+              className="game-detail-input"
+              type="number"
+              value={oppRating}
+              onChange={e => setOppRating(e.target.value)}
+              onBlur={saveOppRating}
+              placeholder="e.g. 1850"
+              min={0}
+              max={3500}
+            />
+          </div>
+          <div className="game-detail-field">
+            <label className="game-detail-label">Phase Lost</label>
+            <select
+              className="game-detail-select"
+              value={phase}
+              onChange={e => savePhase(e.target.value)}
+            >
+              <option value="">— not set —</option>
+              {PHASE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="game-detail-field game-detail-field--full">
+            <label className="game-detail-label">What happened?</label>
+            <textarea
+              className="game-detail-textarea"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              onBlur={saveNotes}
+              placeholder="e.g. Missed tactic in the middlegame, got outplayed positionally…"
+              rows={3}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -318,24 +357,27 @@ function AddGameModal({ onAdd, onClose }) {
   );
 }
 
-// ── Game row ──────────────────────────────────────────────────────────────────
+// ── Game row (single line) ────────────────────────────────────────────────────
 
 function GameRow({ game, onOpen, onDelete }) {
+  const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
+  const resultClass = game.result ? `game-row--${game.result}` : '';
+
   return (
-    <div className="game-row">
-      <ResultBadge result={game.result} />
+    <div className={`game-row ${resultClass}`}>
       <div className="game-row-body" onClick={() => onOpen(game.id)}>
-        <div className="game-row-main">
-          <span className="game-row-name">{game.name}</span>
-          {game.opening && <span className="game-row-opening">{game.opening}</span>}
-        </div>
-        <div className="game-row-meta">
-          {game.game_date && <span>{game.game_date.replace(/\./g, '-')}</span>}
-          {game.time_control && <span>{game.time_control}</span>}
-          {game.tags.map(t => <TagBadge key={t} label={t} />)}
+        {colorCircle && <span className="game-row-color">{colorCircle}</span>}
+        <span className="game-row-name">
+          {game.opponent || game.name}
+          {game.opponent_rating ? <span className="game-row-rating"> ({game.opponent_rating})</span> : null}
+        </span>
+        <div className="game-row-chips">
+          {game.opening && <span className="game-row-chip">{game.opening}</span>}
+          {game.time_control && <span className="game-row-chip game-row-chip--muted">{game.time_control}</span>}
+          {game.phase && <span className="game-row-chip game-row-chip--phase">{phaseLabel(game.phase)}</span>}
         </div>
       </div>
-      <button className="game-row-delete" onClick={() => onDelete(game.id)} title="Delete">✕</button>
+      <button className="game-row-delete" onClick={e => { e.stopPropagation(); onDelete(game.id); }} title="Delete">✕</button>
     </div>
   );
 }
@@ -350,7 +392,7 @@ export default function GamesScreen({ userId, playerName, onBack }) {
   const [filterResult, setFilterResult] = useState('all');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [viewGame, setViewGame] = useState(null);   // { game, replayData }
+  const [viewGame, setViewGame] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const searchTimeout = useRef(null);
 
@@ -403,12 +445,9 @@ export default function GamesScreen({ userId, playerName, onBack }) {
 
   async function handleAdd(pgn) {
     const parts = splitPgn(pgn);
-    const added = [];
     for (const part of parts) {
-      const g = await saveGame(userId, part, playerName);
-      added.push(g);
+      await saveGame(userId, part, playerName);
     }
-    // Reload first page
     setPage(0);
     setSearch('');
     setFilterResult('all');
@@ -422,16 +461,10 @@ export default function GamesScreen({ userId, playerName, onBack }) {
     loadGames(page, search, filterResult);
   }
 
-  async function handleUpdateTags(gameId, tags) {
-    await updateGameTags(gameId, tags);
-    setViewGame(prev => prev ? { ...prev, game: { ...prev.game, tags } } : prev);
-    setGames(gs => gs.map(g => g.id === gameId ? { ...g, tags } : g));
-  }
-
-  async function handleUpdateName(gameId, name) {
-    await updateGameName(gameId, name);
-    setViewGame(prev => prev ? { ...prev, game: { ...prev.game, name } } : prev);
-    setGames(gs => gs.map(g => g.id === gameId ? { ...g, name } : g));
+  async function handleUpdateField(gameId, fields) {
+    await updateGameField(gameId, fields);
+    setViewGame(prev => prev ? { ...prev, game: { ...prev.game, ...fields } } : prev);
+    setGames(gs => gs.map(g => g.id === gameId ? { ...g, ...fields } : g));
   }
 
   if (viewGame) {
@@ -442,8 +475,7 @@ export default function GamesScreen({ userId, playerName, onBack }) {
           replayData={viewGame.replayData}
           onBack={() => setViewGame(null)}
           onDelete={handleDelete}
-          onUpdateTags={handleUpdateTags}
-          onUpdateName={handleUpdateName}
+          onUpdateField={handleUpdateField}
         />
       </div>
     );

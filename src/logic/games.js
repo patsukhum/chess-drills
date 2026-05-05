@@ -4,6 +4,8 @@ import { splitPgn } from './pgn.js';
 const LOCAL_KEY = 'chess_drill_games';
 const PAGE_SIZE = 20;
 
+const LIST_COLS = 'id, name, opening, eco, result, player_color, opponent, opponent_rating, time_control, game_date, phase, notes, tags, created_at';
+
 function localGames() {
   try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); } catch { return []; }
 }
@@ -27,6 +29,10 @@ export function extractPgnMetadata(pgn, playerName) {
   const event = h('Event') || null;
   const chapterName = h('ChapterName') || null;
 
+  // Try to detect opponent rating from PGN headers
+  const whiteElo = h('WhiteElo');
+  const blackElo = h('BlackElo');
+
   let player_color = null;
   if (playerName) {
     const lc = playerName.toLowerCase();
@@ -35,6 +41,8 @@ export function extractPgnMetadata(pgn, playerName) {
   }
 
   const opponent = player_color === 'white' ? (black || null) : (player_color === 'black' ? (white || null) : null);
+  const opponent_rating_str = player_color === 'white' ? blackElo : (player_color === 'black' ? whiteElo : null);
+  const opponent_rating = opponent_rating_str ? parseInt(opponent_rating_str) || null : null;
 
   let result = null;
   if (resultHeader && player_color) {
@@ -52,7 +60,7 @@ export function extractPgnMetadata(pgn, playerName) {
   }
   if (!name) name = 'Untitled';
 
-  return { name, opening, eco, result, player_color, opponent, time_control, game_date };
+  return { name, opening, eco, result, player_color, opponent, opponent_rating, time_control, game_date };
 }
 
 export async function getGames(userId, { page = 0, search = '', filterResult = 'all' } = {}) {
@@ -74,7 +82,7 @@ export async function getGames(userId, { page = 0, search = '', filterResult = '
 
   let query = supabase
     .from('user_games')
-    .select('id, name, opening, eco, result, player_color, opponent, time_control, game_date, tags, created_at', { count: 'exact' })
+    .select(LIST_COLS, { count: 'exact' })
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
@@ -106,7 +114,7 @@ export async function getGamePgn(gameId) {
 
 async function _saveOne(userId, pgn, playerName) {
   const meta = extractPgnMetadata(pgn, playerName);
-  const record = { ...meta, pgn, tags: [] };
+  const record = { ...meta, pgn, tags: [], phase: null, notes: null };
 
   if (!userId) {
     const entry = { ...record, id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`, created_at: new Date().toISOString() };
@@ -118,7 +126,7 @@ async function _saveOne(userId, pgn, playerName) {
   const { data, error } = await supabase
     .from('user_games')
     .insert({ user_id: userId, ...record })
-    .select('id, name, opening, eco, result, player_color, opponent, time_control, game_date, tags, created_at')
+    .select(LIST_COLS)
     .single();
   if (error) throw error;
   return data;
@@ -126,20 +134,6 @@ async function _saveOne(userId, pgn, playerName) {
 
 export async function saveGame(userId, pgn, playerName) {
   return _saveOne(userId, pgn, playerName);
-}
-
-export async function importGames(userId, pgn, playerName) {
-  const parts = splitPgn(pgn);
-  const results = [];
-  for (const part of parts) {
-    try {
-      const g = await _saveOne(userId, part, playerName);
-      results.push(g);
-    } catch (e) {
-      console.warn('Skipping game during import:', e);
-    }
-  }
-  return results;
 }
 
 export async function deleteGame(gameId) {
@@ -150,18 +144,10 @@ export async function deleteGame(gameId) {
   await supabase.from('user_games').delete().eq('id', gameId);
 }
 
-export async function updateGameTags(gameId, tags) {
+export async function updateGameField(gameId, fields) {
   if (String(gameId).startsWith('local_')) {
-    saveLocalGames(localGames().map(g => g.id === gameId ? { ...g, tags } : g));
+    saveLocalGames(localGames().map(g => g.id === gameId ? { ...g, ...fields } : g));
     return;
   }
-  await supabase.from('user_games').update({ tags }).eq('id', gameId);
-}
-
-export async function updateGameName(gameId, name) {
-  if (String(gameId).startsWith('local_')) {
-    saveLocalGames(localGames().map(g => g.id === gameId ? { ...g, name } : g));
-    return;
-  }
-  await supabase.from('user_games').update({ name }).eq('id', gameId);
+  await supabase.from('user_games').update(fields).eq('id', gameId);
 }
