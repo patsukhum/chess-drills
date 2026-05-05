@@ -36,8 +36,10 @@ function formatTC(tc) {
 // "0:05:00" → "5:00", "0:00:45" → "0:45"
 function formatClock(clk) {
   if (!clk) return null;
-  const parts = clk.split(':').map(Number);
-  const [h, m, s] = parts;
+  const [hStr, mStr, sStr] = clk.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const s = parseInt(sStr, 10);
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }

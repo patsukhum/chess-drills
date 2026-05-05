@@ -26,8 +26,7 @@ function parseGame(rawGame) {
   // Extract clocks by index from raw text BEFORE cleaning — avoids FEN
   // mismatch bugs when the same position is reached twice (transposition).
   const clkTimes = [];
-  for (const m of rawGame.matchAll(/\[%clk\s+(\d+:\d+:\d+)\]/g)) clkTimes.push(m[1]);
-  console.log('[pgn] clocks found:', clkTimes.length, '| first 200 chars:', rawGame.slice(0, 200));
+  for (const m of rawGame.matchAll(/\[%clk\s+(\d+:\d+:\d+(?:\.\d+)?)\]/g)) clkTimes.push(m[1]);
 
   const gamePgn = cleanPgn(rawGame);
   const chess = new Chess();
