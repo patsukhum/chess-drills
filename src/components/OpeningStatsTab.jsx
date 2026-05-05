@@ -51,21 +51,6 @@ function computeTree(games) {
   return families;
 }
 
-// ── Win rate bar ──────────────────────────────────────────────────────────────
-
-function WinBar({ wins, draws, losses, total }) {
-  const wp = (wins   / total) * 100;
-  const dp = (draws  / total) * 100;
-  const lp = (losses / total) * 100;
-  return (
-    <div className="stat-winbar">
-      {wins   > 0 && <div className="stat-winbar-w" style={{ width: `${wp}%` }} />}
-      {draws  > 0 && <div className="stat-winbar-d" style={{ width: `${dp}%` }} />}
-      {losses > 0 && <div className="stat-winbar-l" style={{ width: `${lp}%` }} />}
-    </div>
-  );
-}
-
 // ── Win rate over time chart ──────────────────────────────────────────────────
 
 function WinRateChart({ games, label }) {
@@ -162,19 +147,19 @@ function StatsRow({ name, stats, indent, isSelected, isExpanded, canExpand, onTo
   const { wins, losses, draws, total, score } = stats;
   const lowSample = total < 5;
 
+  function handleClick() {
+    if (canExpand) onToggleExpand();
+    onSelect();
+  }
+
   return (
     <div
       className={`stat-row${indent ? ' stat-row--variation' : ''}${isSelected ? ' stat-row--selected' : ''}`}
-      onClick={onSelect}
+      onClick={handleClick}
     >
       <div className="stat-row-name">
         {canExpand && (
-          <button
-            className="stat-expand-btn"
-            onClick={e => { e.stopPropagation(); onToggleExpand(); }}
-          >
-            {isExpanded ? '▾' : '▸'}
-          </button>
+          <span className="stat-expand-icon">{isExpanded ? '▾' : '▸'}</span>
         )}
         {!canExpand && indent && <span className="stat-indent" />}
         <span className="stat-row-label">{name}</span>
@@ -297,58 +282,63 @@ export default function OpeningStatsTab({ userId, onOpenGames }) {
       ) : rows.length === 0 ? (
         <p className="games-empty">No games with opening data match these filters.</p>
       ) : (
-        <>
-          <div className="stat-table">
-            <div className="stat-header">
-              <div className="stat-row-name">Opening</div>
-              <div className="stat-row-games">Games</div>
-              <div className="stat-row-pct">Score%</div>
-              <div className="stat-row-wld">W / D / L</div>
-            </div>
-
-            {rows.map(row => (
-              <div key={row.name}>
-                <StatsRow
-                  name={row.name}
-                  stats={row.stats}
-                  indent={false}
-                  isSelected={selected?.name === row.name}
-                  isExpanded={expanded.has(row.name)}
-                  canExpand={row.variations.length > 0}
-                  onToggleExpand={() => toggleExpand(row.name)}
-                  onSelect={() => selectRow(row.name, row.games, row.name)}
-                />
-                {expanded.has(row.name) && row.variations.map(v => (
-                  <StatsRow
-                    key={v.name}
-                    name={v.name}
-                    stats={v.stats}
-                    indent={true}
-                    isSelected={selected?.name === v.name}
-                    isExpanded={false}
-                    canExpand={false}
-                    onToggleExpand={() => {}}
-                    onSelect={() => selectRow(v.name, v.games, `${row.name}: ${v.name}`)}
-                  />
-                ))}
+        <div className="stat-content-layout">
+          <div className="stat-table-col">
+            <div className="stat-table">
+              <div className="stat-header">
+                <div className="stat-row-name">Opening</div>
+                <div className="stat-row-games">N</div>
+                <div className="stat-row-pct">Score%</div>
+                <div className="stat-row-wld">W / D / L</div>
               </div>
-            ))}
+
+              {rows.map(row => (
+                <div key={row.name}>
+                  <StatsRow
+                    name={row.name}
+                    stats={row.stats}
+                    indent={false}
+                    isSelected={selected?.name === row.name}
+                    isExpanded={expanded.has(row.name)}
+                    canExpand={row.variations.length > 0}
+                    onToggleExpand={() => toggleExpand(row.name)}
+                    onSelect={() => selectRow(row.name, row.games, row.name)}
+                  />
+                  {expanded.has(row.name) && row.variations.map(v => (
+                    <StatsRow
+                      key={v.name}
+                      name={v.name}
+                      stats={v.stats}
+                      indent={true}
+                      isSelected={selected?.name === v.name}
+                      isExpanded={false}
+                      canExpand={false}
+                      onToggleExpand={() => {}}
+                      onSelect={() => selectRow(v.name, v.games, `${row.name}: ${v.name}`)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
 
           {selected && (
-            <div className="stat-selected-panel">
-              {selected.games.length >= 2 && (
-                <WinRateChart games={selected.games} label={selected.name} />
-              )}
-              <button
-                className="stat-view-games-btn"
-                onClick={() => onOpenGames?.(selected.openingFilter, filterTC, filterColor)}
-              >
-                View {selected.games.length} game{selected.games.length !== 1 ? 's' : ''} →
-              </button>
+            <div className="stat-panel-col">
+              <div className="stat-selected-panel">
+                <div className="stat-panel-heading">{selected.name}</div>
+                {selected.games.length >= 2 && (
+                  <WinRateChart games={selected.games} label={`Rolling ${10}-game score`} />
+                )}
+                <button
+                  className="stat-view-games-btn"
+                  onClick={() => onOpenGames?.(selected.openingFilter, filterTC, filterColor)}
+                >
+                  View {selected.games.length} game{selected.games.length !== 1 ? 's' : ''} →
+                </button>
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
