@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase.js';
-import { splitPgn } from './pgn.js';
+import { splitPgn, parseChapterNameMeta } from './pgn.js';
 
 const LOCAL_KEY = 'chess_drill_games';
 const PAGE_SIZE = 20;
@@ -24,28 +24,46 @@ export function extractPgnMetadata(pgn, playerName) {
   const white = h('White') || '';
   const black = h('Black') || '';
   const resultHeader = h('Result') || null;
-  const time_control = h('TimeControl') || null;
+  const time_control_header = h('TimeControl') || null;
   const game_date = h('UTCDate') || h('Date') || null;
   const event = h('Event') || null;
   const chapterName = h('ChapterName') || null;
-
-  // Try to detect opponent rating from PGN headers
   const whiteElo = h('WhiteElo');
   const blackElo = h('BlackElo');
 
+  // Parse chapter name for richer metadata (result, opponent, rating, time control)
+  const cm = parseChapterNameMeta(chapterName);
+
+  // Player color: infer from chapter-name result + PGN Result header
   let player_color = null;
-  if (playerName) {
+  if (cm.result && resultHeader && resultHeader !== '*' && resultHeader !== '1/2-1/2') {
+    if (cm.result === 'win'  && resultHeader === '1-0') player_color = 'white';
+    if (cm.result === 'win'  && resultHeader === '0-1') player_color = 'black';
+    if (cm.result === 'loss' && resultHeader === '1-0') player_color = 'black';
+    if (cm.result === 'loss' && resultHeader === '0-1') player_color = 'white';
+  }
+  // Fallback: match by player name against White/Black headers
+  if (!player_color && playerName) {
     const lc = playerName.toLowerCase();
     if (white.toLowerCase() === lc) player_color = 'white';
     else if (black.toLowerCase() === lc) player_color = 'black';
   }
 
-  const opponent = player_color === 'white' ? (black || null) : (player_color === 'black' ? (white || null) : null);
-  const opponent_rating_str = player_color === 'white' ? blackElo : (player_color === 'black' ? whiteElo : null);
-  const opponent_rating = opponent_rating_str ? parseInt(opponent_rating_str) || null : null;
+  // Opponent from color (White/Black header names)
+  const opponent_from_header = player_color === 'white' ? (black || null) : (player_color === 'black' ? (white || null) : null);
+  const opponent_rating_from_elo = (() => {
+    const s = player_color === 'white' ? blackElo : (player_color === 'black' ? whiteElo : null);
+    return s ? parseInt(s) || null : null;
+  })();
 
-  let result = null;
-  if (resultHeader && player_color) {
+  // Chapter name takes precedence for opponent/rating/time_control
+  const opponent = cm.opponent || opponent_from_header;
+  const opponent_rating = cm.opponent_rating || opponent_rating_from_elo;
+  const time_control = time_control_header || cm.time_control || null;
+
+  // Result: chapter name is most reliable (handles * games)
+  let result = cm.result || null;
+  if (!result && resultHeader && player_color) {
     if (resultHeader === '1/2-1/2') result = 'draw';
     else if (resultHeader === '1-0') result = player_color === 'white' ? 'win' : 'loss';
     else if (resultHeader === '0-1') result = player_color === 'black' ? 'win' : 'loss';
@@ -112,9 +130,9 @@ export async function getGamePgn(gameId) {
   return data.pgn;
 }
 
-async function _saveOne(userId, pgn, playerName) {
+async function _saveOne(userId, pgn, playerName, overrides = {}) {
   const meta = extractPgnMetadata(pgn, playerName);
-  const record = { ...meta, pgn, tags: [], phase: null, notes: null };
+  const record = { ...meta, ...overrides, pgn, tags: [], phase: null, notes: null };
 
   if (!userId) {
     const entry = { ...record, id: `local_${Date.now()}_${Math.random().toString(36).slice(2)}`, created_at: new Date().toISOString() };
@@ -132,8 +150,8 @@ async function _saveOne(userId, pgn, playerName) {
   return data;
 }
 
-export async function saveGame(userId, pgn, playerName) {
-  return _saveOne(userId, pgn, playerName);
+export async function saveGame(userId, pgn, playerName, overrides = {}) {
+  return _saveOne(userId, pgn, playerName, overrides);
 }
 
 export async function deleteGame(gameId) {

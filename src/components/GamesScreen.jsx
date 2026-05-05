@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { getGames, getGamePgn, saveGame, deleteGame, updateGameField } from '../logic/games.js';
-import { pgnToReplayData, splitPgn } from '../logic/pgn.js';
+import { pgnToReplayData, splitPgn, parseChapterNameMeta } from '../logic/pgn.js';
 
 const PAGE_SIZE = 20;
 
@@ -483,8 +483,20 @@ export default function GamesScreen({ userId, playerName, onBack }) {
 
   async function handleAdd(pgn) {
     const parts = splitPgn(pgn);
+    let lastTimeControl = null;
     for (const part of parts) {
-      await saveGame(userId, part, playerName);
+      const cnMatch = part.match(/\[ChapterName\s+"([^"]+)"\]/);
+      const chapterName = cnMatch ? cnMatch[1] : '';
+      const cm = parseChapterNameMeta(chapterName);
+      // New section header resets or updates the propagated time control
+      if (/\(/.test(chapterName.replace(/^\*+/, ''))) {
+        lastTimeControl = cm.time_control; // null if section has no TC (e.g. U2000 MA)
+      } else if (cm.time_control) {
+        lastTimeControl = cm.time_control;
+      }
+      // Pass propagated TC only when the chapter itself doesn't encode one
+      const overrides = (!cm.time_control && lastTimeControl) ? { time_control: lastTimeControl } : {};
+      await saveGame(userId, part, playerName, overrides);
     }
     setPage(0);
     setSearch('');

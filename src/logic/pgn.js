@@ -79,6 +79,75 @@ export function splitPgn(pgn) {
   return splitGames(pgn);
 }
 
+// Parse metadata encoded in Lichess study chapter names like:
+//   "(G45 Sat) R1 Won vs Darren 1400"
+//   "R2 W 1620 Nikolai VARFOLOMEEV"
+//   "(Classical) Lost vs 2100 Gutnik"
+export function parseChapterNameMeta(name) {
+  if (!name) return {};
+
+  let clean = name.replace(/^\*+/, '').trim();
+
+  // Time control from parentheses: (G45 Sat), (Thurs G25), (Classical)
+  let time_control = null;
+  const parenMatch = clean.match(/\(([^)]+)\)/);
+  if (parenMatch) {
+    const inner = parenMatch[1];
+    const gMatch = inner.match(/G(\d+)/i);
+    if (gMatch) time_control = `G${gMatch[1]}`;
+    else if (/classical/i.test(inner)) time_control = 'Classical';
+    clean = clean.replace(parenMatch[0], '').trim();
+  }
+
+  // Result — longer keywords first, then single uppercase letters
+  let result = null;
+  if (/\b(won|win)\b/i.test(clean))       result = 'win';
+  else if (/\b(lost|loss)\b/i.test(clean)) result = 'loss';
+  else if (/\b(drew|draw)\b/i.test(clean)) result = 'draw';
+  else if (/\bW\b/.test(clean))            result = 'win';
+  else if (/\bL\b/.test(clean))            result = 'loss';
+  else if (/\bD\b/.test(clean))            result = 'draw';
+
+  // Opponent name and rating
+  let opponent = null;
+  let opponent_rating = null;
+
+  const vsMatch = clean.match(/\bvs\s+(.+)/i);
+  if (vsMatch) {
+    const afterVs = vsMatch[1].trim();
+    const rm = afterVs.match(/\b(\d{3,4})\b/);
+    if (rm) {
+      const n = parseInt(rm[1]);
+      if (n >= 400 && n <= 3500) opponent_rating = n;
+    }
+    const nameOnly = afterVs.replace(/\b\d{3,4}\b/g, '').replace(/\s+/g, ' ').trim();
+    if (nameOnly) opponent = nameOnly;
+  } else {
+    // No "vs" — strip round markers and result words, then separate rating from name
+    const stripped = clean
+      .replace(/\bR\d+\b/g, '')
+      .replace(/\b(won|win|lost|loss|drew|draw)\b/gi, '')
+      .replace(/\bW\b|\bL\b|\bD\b/g, '')
+      .replace(/\s*-+\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const rm = stripped.match(/\b(\d{3,4})\b/);
+    if (rm) {
+      const n = parseInt(rm[1]);
+      if (n >= 400 && n <= 3500) {
+        opponent_rating = n;
+        const nameOnly = stripped.replace(rm[0], '').replace(/\s+/g, ' ').trim();
+        if (nameOnly.length > 1) opponent = nameOnly;
+      }
+    } else if (stripped.length > 1) {
+      opponent = stripped;
+    }
+  }
+
+  return { time_control, result, opponent, opponent_rating };
+}
+
 export function pgnToReplayData(pgn) {
   let chapter;
   try {
