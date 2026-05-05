@@ -1173,7 +1173,7 @@ body {
 @media (max-width: 719px) {
   .study-movelist {
     width: 100%;
-    max-height: 220px;
+    max-height: 108px;
     align-self: auto;
   }
 }
