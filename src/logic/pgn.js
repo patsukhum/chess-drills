@@ -23,28 +23,30 @@ function parseGame(rawGame) {
   const chapterMatch = rawGame.match(/\[ChapterName\s+"([^"]+)"\]/);
   const name = chapterMatch ? chapterMatch[1] : null;
 
+  // Extract clocks by index from raw text BEFORE cleaning — avoids FEN
+  // mismatch bugs when the same position is reached twice (transposition).
+  const clkTimes = [];
+  for (const m of rawGame.matchAll(/\[%clk\s+(\d+:\d+:\d+)\]/g)) clkTimes.push(m[1]);
+
   const gamePgn = cleanPgn(rawGame);
   const chess = new Chess();
   chess.loadPgn(gamePgn);
   const history = chess.history({ verbose: true });
   if (history.length === 0) return null;
 
-  // Build FEN→comment and FEN→clock maps from PGN annotations
+  // Build FEN→comment map (still FEN-based since comments don't repeat)
   const commentsByFen = {};
-  const clocksByFen = {};
   for (const { fen, comment } of chess.getComments()) {
-    const clkMatch = comment.match(/\[%clk\s+(\d+:\d+:\d+)\]/);
-    if (clkMatch) clocksByFen[fen] = clkMatch[1];
     const text = comment.replace(/\[%[^\]]*\]/g, '').trim();
     if (text) commentsByFen[fen] = text;
   }
 
   const replay = startFen ? new Chess(startFen) : new Chess();
-  // Comment before the first move is keyed by the starting FEN
   const introComment = commentsByFen[replay.fen()] ?? null;
 
   const positions = [];
-  for (const move of history) {
+  for (let i = 0; i < history.length; i++) {
+    const move = history[i];
     const entry = {
       fen: replay.fen(),
       from: move.from,
@@ -52,12 +54,10 @@ function parseGame(rawGame) {
       promotion: move.promotion || null,
       san: move.san,
       comment: null,
-      clk: null,
+      clk: clkTimes[i] ?? null,
     };
     replay.move(move);
-    // Comment and clock follow the move, keyed by the FEN after the move
     entry.comment = commentsByFen[replay.fen()] ?? null;
-    entry.clk = clocksByFen[replay.fen()] ?? null;
     positions.push(entry);
   }
 
