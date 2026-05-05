@@ -464,11 +464,13 @@ export default function OnlineGamesSection({ userId }) {
     );
   }
 
+  const hasGames = total > 0 || loading;
+
   return (
     <div className="games-screen">
       <AccountSetup userId={userId} accounts={accounts} onAccountsChange={handleAccountsChange} />
 
-      {hasAccounts && (
+      {(hasGames || search) && (
         <>
           <div className="games-toolbar">
             <input
@@ -502,52 +504,48 @@ export default function OnlineGamesSection({ userId }) {
                 </button>
               ))}
             </div>
-            {accounts.lichess && accounts['chess.com'] && (
-              <div className="games-filter-tabs">
-                {['all', 'lichess', 'chess.com'].map(f => (
-                  <button
-                    key={f}
-                    className={`games-filter-tab${filterPlatform === f ? ' games-filter-tab--active' : ''}`}
-                    onClick={() => setFilterPlatform(f)}
-                  >
-                    {f === 'all' ? 'All Sites' : f === 'lichess' ? 'Lichess' : 'Chess.com'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {viewLoading && <p className="study-loading">Loading game…</p>}
-
-          {loading ? (
-            <p className="study-loading">Loading…</p>
-          ) : games.length === 0 ? (
-            <div className="games-empty">
-              <p>{total === 0 && !search ? 'No games imported yet. Use the Import button above.' : 'No games match your filters.'}</p>
+            <div className="games-filter-tabs">
+              {['all', 'lichess', 'chess.com'].map(f => (
+                <button
+                  key={f}
+                  className={`games-filter-tab${filterPlatform === f ? ' games-filter-tab--active' : ''}`}
+                  onClick={() => setFilterPlatform(f)}
+                >
+                  {f === 'all' ? 'All' : f === 'lichess' ? 'Lichess' : 'Chess.com'}
+                </button>
+              ))}
             </div>
-          ) : (
-            <>
-              <div className="games-list">
-                {games.map(game => (
-                  <OnlineGameRow key={game.id} game={game} onOpen={handleOpenGame} />
-                ))}
-              </div>
-              {totalPages > 1 && (
-                <div className="games-pagination">
-                  <button className="page-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 0}>‹ Prev</button>
-                  <span className="page-label">Page {page + 1} of {totalPages}</span>
-                  <button className="page-btn" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages - 1}>Next ›</button>
-                </div>
-              )}
-            </>
-          )}
+          </div>
         </>
       )}
 
-      {!hasAccounts && (
+      {viewLoading && <p className="study-loading">Loading game…</p>}
+
+      {loading ? (
+        <p className="study-loading">Loading…</p>
+      ) : games.length === 0 ? (
         <div className="games-empty">
-          <p>Connect a Lichess or Chess.com account above to import your games.</p>
+          <p>
+            {search || filterResult !== 'all' || filterTC !== 'all' || filterPlatform !== 'all'
+              ? 'No games match your filters.'
+              : 'No games yet. Import from Lichess or Chess.com above.'}
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="games-list">
+            {games.map(game => (
+              <OnlineGameRow key={game.id} game={game} onOpen={handleOpenGame} />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <div className="games-pagination">
+              <button className="page-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 0}>‹ Prev</button>
+              <span className="page-label">Page {page + 1} of {totalPages}</span>
+              <button className="page-btn" onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages - 1}>Next ›</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
