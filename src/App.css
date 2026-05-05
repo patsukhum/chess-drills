@@ -1782,6 +1782,36 @@ body {
 
 .game-detail-textarea:focus { border-color: var(--accent); }
 
+.detail-toggle-group {
+  display: flex;
+  gap: 6px;
+}
+
+.detail-toggle {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.detail-toggle:hover { background: rgba(255, 255, 255, 0.09); color: var(--text); }
+
+.detail-toggle--active {
+  background: rgba(124, 143, 247, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.detail-toggle--win.detail-toggle--active  { background: rgba(45, 125, 45, 0.25); border-color: #4caf50; color: #4caf50; }
+.detail-toggle--loss.detail-toggle--active { background: rgba(170, 34, 34, 0.25); border-color: #e05252; color: #e05252; }
+.detail-toggle--draw.detail-toggle--active { background: rgba(120, 120, 120, 0.2); border-color: #aaa; color: #aaa; }
+
 @media (max-width: 500px) {
   .game-details-grid {
     grid-template-columns: 1fr;

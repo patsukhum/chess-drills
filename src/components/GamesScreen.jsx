@@ -114,6 +114,8 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
   const [oppRating, setOppRating] = useState(game.opponent_rating?.toString() || '');
   const [phase, setPhase] = useState(game.phase || '');
   const [notes, setNotes] = useState(game.notes || '');
+  const [result, setResult] = useState(game.result || '');
+  const [playerColor, setPlayerColor] = useState(game.player_color || '');
 
   const { fens, moves, introComment } = replayData;
   const totalPos = fens.length;
@@ -182,7 +184,17 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
     if (val !== (game.notes || null)) onUpdateField(game.id, { notes: val });
   }
 
-  const colorCircle = game.player_color === 'white' ? '⚪' : game.player_color === 'black' ? '⚫' : null;
+  function saveResult(val) {
+    setResult(val);
+    onUpdateField(game.id, { result: val || null });
+  }
+
+  function savePlayerColor(val) {
+    setPlayerColor(val);
+    onUpdateField(game.id, { player_color: val || null });
+  }
+
+  const colorCircle = playerColor === 'white' ? '⚪' : playerColor === 'black' ? '⚫' : null;
 
   return (
     <div className="game-viewer-screen">
@@ -261,6 +273,32 @@ function GameViewer({ game, replayData, onBack, onDelete, onUpdateField }) {
               placeholder="e.g. Sicilian Defense"
               maxLength={80}
             />
+          </div>
+          <div className="game-detail-field">
+            <label className="game-detail-label">Result</label>
+            <div className="detail-toggle-group">
+              {[['win','Win'],['draw','Draw'],['loss','Loss']].map(([v,l]) => (
+                <button
+                  key={v}
+                  className={`detail-toggle detail-toggle--${v}${result === v ? ' detail-toggle--active' : ''}`}
+                  onClick={() => saveResult(result === v ? '' : v)}
+                  type="button"
+                >{l}</button>
+              ))}
+            </div>
+          </div>
+          <div className="game-detail-field">
+            <label className="game-detail-label">Played as</label>
+            <div className="detail-toggle-group">
+              {[['white','⚪ White'],['black','⚫ Black']].map(([v,l]) => (
+                <button
+                  key={v}
+                  className={`detail-toggle${playerColor === v ? ' detail-toggle--active' : ''}`}
+                  onClick={() => savePlayerColor(playerColor === v ? '' : v)}
+                  type="button"
+                >{l}</button>
+              ))}
+            </div>
           </div>
           <div className="game-detail-field">
             <label className="game-detail-label">Opponent Rating</label>
